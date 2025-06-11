@@ -1,10 +1,13 @@
 #!/bin/bash
-#SBATCH --job-name=mriqc_all
-#SBATCH --ntasks=2
-#SBATCH --mem=16G
-#SBATCH --time=12:00:00
-#SBATCH --output=mriqc_%j.out
-#SBATCH --error=mriqc_%j.err
+   #SBATCH --job-name=mriqc_all
+   #SBATCH --account=fang
+   #SBATCH --partition=cpu-g2
+   #SBATCH --qos=normal
+   #SBATCH --ntasks=2
+   #SBATCH --mem=40G
+   #SBATCH --time=12:00:00
+   #SBATCH --output=mriqc_all_%j.out
+   #SBATCH --error=mriqc_all_%j.err
 
 module load apptainer
 
@@ -21,7 +24,5 @@ apptainer run \
   #--participant-label ${SUBJECTS} \
   --participant-label 102 \
   --work-dir /work \
-  --n_procs 2 \
-  --mem_gb 16 \
   --verbose-reports \
   --no-sub
