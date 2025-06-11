@@ -1,13 +1,13 @@
 #!/bin/bash
-   #SBATCH --job-name=mriqc_all
-   #SBATCH --account=fang
-   #SBATCH --partition=cpu-g2
-   #SBATCH --qos=normal
-   #SBATCH --ntasks=2
-   #SBATCH --mem=40G
-   #SBATCH --time=12:00:00
-   #SBATCH --output=mriqc_all_%j.out
-   #SBATCH --error=mriqc_all_%j.err
+#SBATCH --job-name=mriqc_all
+#SBATCH --account=fang
+#SBATCH --partition=cpu-g2
+#SBATCH --qos=normal
+#SBATCH --ntasks=2
+#SBATCH --mem=40G
+#SBATCH --time=12:00:00
+#SBATCH --output=mriqc_all_%j.out
+#SBATCH --error=mriqc_all_%j.err
 
 module load apptainer
 
@@ -21,8 +21,9 @@ apptainer run \
   -B /gscratch/scrubbed/fanglab/xiaoqian/IFOCUS/mriqc_work:/work \
   /gscratch/scrubbed/fanglab/xiaoqian/images/mriqc_24.0.2.sif \
   /data /out participant \
-  #--participant-label ${SUBJECTS} \
   --participant-label 102 \
   --work-dir /work \
   --verbose-reports \
   --no-sub
+
+  #--participant-label ${SUBJECTS} \
