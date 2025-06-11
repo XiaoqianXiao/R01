@@ -1,0 +1,28 @@
+## local
+#step 1
+docker pull nipreps/mriqc:24.0.2
+
+#step 2
+docker run -it --rm \
+  -v /Users/xiaoqianxiao/projects/IFOCUS:/data:ro \
+  -v /Users/xiaoqianxiao/projects/IFOCUS/derivatives/mriqc:/out \
+  -v /Users/xiaoqianxiao/projects/mriqc_work:/work \
+  nipreps/mriqc:24.0.2 \
+  /data /out participant \
+  --participant-label Pilot001 \
+  --work-dir /work \
+  --n_procs 4 \
+  --mem_gb 12 \
+  --fd_thres 0.3 \
+  --verbose-reports \
+  --no-sub
+
+  ## hyak
+  #step 1
+  rsync -a -e "ssh -o IPQoS=throughput" /Users/xiaoqianxiao/projects/IFOCUS xxqian@klone.hyak.uw.edu:/gscratch/fang/
+
+  #step 2
+  salloc -A fang -p cpu-g2 --mem=30G --time=3:00:00
+
+  cd /gscratch/scrubbed/fanglab/xiaoqian/images
+  apptainer pull mriqc_24.0.2.sif docker://nipreps/mriqc:24.0.2
