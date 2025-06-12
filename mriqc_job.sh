@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=mriqc_sub
-#SBATCH --account-id=mrfanglab
-#SBATCH --partition=cpu-g7
+#SBATCH --account=fang
+#SBATCH --partition=cpu-g2
 #SBATCH --qos=normal
 #SBATCH --ntasks=4
 #SBATCH --mem=32G
@@ -13,7 +13,7 @@
 module load apptainer
 
 # Dynamically get all subject IDs from /gscratch/fang/IFOCUS
-SUBJECTS=($(find /gscratch/mrfanglab/IFOCUS -maxdepth 1 -type d -name "sub-*" -exec basename {} \; | sed 's/sub-//g' | sort))
+SUBJECTS=($(find /gscratch/fang/IFOCUS -maxdepth 1 -type d -name "sub-*" -exec basename {} \; | sed 's/sub-//g' | sort))
 
 # Get the subject ID for this array task
 SUBJECT=${SUBJECTS[$SLURM_ARRAY_TASK_ID]}
@@ -26,10 +26,10 @@ fi
 
 apptainer run \
   --cleanenv \
-  -B /gscratch/mrfanglab/IFOCUS:/data \
-  -B /gscratch/mrfanglab/IFOCUS/output/mriqc:/out \
-  -B /gscratch/mrfanglab_work:/work \
-  /gscratch/mrfanglab/images/mriqc_24.0.2.sif \
+  -B /gscratch/fang/IFOCUS:/data \
+  -B /gscratch/fang/IFOCUS/derivatives/mriqc:/out \
+  -B /gscratch/fang/IFOCUS/derivatives/mriqc_work:/work \
+  /gscratch/scrubbed/fanglab/xiaoqian/images/mriqc_24.0.2.sif \
   /data /out participant \
   --participant-label ${SUBJECT} \
   --work-dir /work \
