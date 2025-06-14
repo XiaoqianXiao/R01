@@ -35,5 +35,6 @@ apptainer run \
   --work-dir /work \
   --n_procs 4 \
   --mem_gb 24 \
+  --fd_thres 0.3 \
   --verbose-reports \
   --no-sub
