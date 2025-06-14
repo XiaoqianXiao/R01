@@ -1,7 +1,7 @@
 import os
 import re
 from glob import glob
-import flywheel
+import QC_flywheel
 import pandas as pd
 
 base_dir = '/Users/xiaoqianxiao/projects'
@@ -9,7 +9,7 @@ project_name = 'IFOCUS'
 flywheel_client_ID = 'uw-chn.flywheel.io:djEiLeP_pwqp2Pe0Jimpi5GhRV3wAIp36HEvqdi_AnSJtgprOxhuW5Qvg'
 
 # %%
-fw = flywheel.Client(flywheel_client_ID)
+fw = QC_flywheel.Client(flywheel_client_ID)
 project = fw.projects.find_one('group=fang-lab,label=IFOCUS')
 
 #%%
@@ -75,12 +75,12 @@ Wrap
 Run
 
 Copy
-import flywheel
+import QC_flywheel
 import time
 
 # Initialize Flywheel client with your actual API key
 api_key = 'YOUR_ACTUAL_API_KEY_HERE'  # Replace with your API key
-fw = flywheel.Client(api_key)
+fw = QC_flywheel.Client(api_key)
 
 # Verify client initialization
 print(f"Client type: {type(fw)}")

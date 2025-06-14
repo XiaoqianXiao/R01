@@ -13,7 +13,7 @@ docker run -it --rm \
   --work-dir /work \
   --n_procs 4 \
   --mem_gb 12 \
-  --fd_thres 0.3 \
+  --fd_thres 0.4 \
   --verbose-reports \
   --no-sub
 

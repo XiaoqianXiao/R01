@@ -2,7 +2,7 @@
 import os
 import re
 from glob import glob
-import flywheel
+import QC_flywheel
 import pandas as pd
 
 base_dir = '/Users/xiaoqianxiao/projects'
@@ -10,7 +10,7 @@ project_name = 'IFOCUS'
 flywheel_client_ID = 'uw-chn.flywheel.io:djEiLeP_pwqp2Pe0Jimpi5GhRV3wAIp36HEvqdi_AnSJtgprOxhuW5Qvg'
 
 # %%
-fw = flywheel.Client(flywheel_client_ID)
+fw = QC_flywheel.Client(flywheel_client_ID)
 project = fw.projects.find_one('group=fang-lab,label=IFOCUS')
 sessions = project.sessions()
 output_dir = os.path.join(base_dir, project_name, 'QC')
