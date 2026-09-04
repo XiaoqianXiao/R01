@@ -1,5 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=fmriprep_build
+#SBATCH --account=fang
 #SBATCH --partition=ckpt-all
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=16G
