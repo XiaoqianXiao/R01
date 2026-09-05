@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=r01-fmriprep
+#SBATCH --account=fang
 #SBATCH --partition=compute
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -17,8 +18,8 @@ Usage:
   sbatch [SLURM_OPTIONS] scripts/submit_fmriprep_hyak.sbatch CONFIG_ENV
 
 Examples:
-  sbatch -A MY_ALLOCATION scripts/submit_fmriprep_hyak.sbatch config/mri_preproc.env
-  sbatch -A MY_ALLOCATION --cpus-per-task=24 --mem=96G scripts/submit_fmriprep_hyak.sbatch config/mri_preproc.env
+  sbatch scripts/submit_fmriprep_hyak.sbatch config/mri_preproc.env
+  sbatch --cpus-per-task=24 --mem=96G scripts/submit_fmriprep_hyak.sbatch config/mri_preproc.env
 
 This submits the canonical fMRIPrep worker to Hyak. Edit CONFIG_ENV first.
 USAGE
