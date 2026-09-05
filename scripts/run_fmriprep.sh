@@ -115,9 +115,11 @@ fi
 
 docker_templateflow_args=()
 apptainer_templateflow_args=()
-if [[ -n "${TEMPLATEFLOW_HOME:-}" ]]; then
+if [[ -n "${TEMPLATEFLOW_HOME:-}" && -d "${TEMPLATEFLOW_HOME}" ]]; then
   docker_templateflow_args=(-v "${TEMPLATEFLOW_HOME}:/templateflow" -e TEMPLATEFLOW_HOME=/templateflow)
   apptainer_templateflow_args=(-B "${TEMPLATEFLOW_HOME}:/templateflow" --env TEMPLATEFLOW_HOME=/templateflow)
+elif [[ -n "${TEMPLATEFLOW_HOME:-}" ]]; then
+  echo "WARNING: TEMPLATEFLOW_HOME does not exist and will not be mounted: ${TEMPLATEFLOW_HOME}" >&2
 fi
 
 apptainer_no_mount_args=()

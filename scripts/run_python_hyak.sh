@@ -41,6 +41,8 @@ if [[ "$runtime" == "docker" ]]; then
   runtime="apptainer"
 fi
 
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}"
+
 if command -v module >/dev/null 2>&1; then
   module load apptainer >/dev/null 2>&1 || module load singularity >/dev/null 2>&1 || true
 fi
