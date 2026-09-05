@@ -40,6 +40,7 @@ Also set:
 - `CONTAINER_RUNTIME` to `apptainer` or `singularity`
 - `FMRIPREP_IMAGE` to the frozen fMRIPrep 25.2.5 `.sif`, usually `/gscratch/fang/images/fmriprep-25.2.5.sif`
 - `PYTHON_CONTAINER_IMAGE` to the Python/Jupyter `.sif`, usually `/gscratch/fang/images/jupyter.sif`
+- `PYTHON_CONTAINER_PYTHON` to the Python executable inside that container, usually `python3`
 - `APPTAINER_NO_MOUNT` to `bind-paths` so Hyak does not try to auto-mount unavailable site paths
 - `FS_LICENSE` to the FreeSurfer license on Hyak, usually `/mmfs1/home/xxqian/files/fs_license.txt`
 - `HYAK_ARRAY_CONCURRENCY`; controls how many subject jobs can run at the same time

@@ -70,9 +70,23 @@ fi
 
 export APPTAINER_BINDPATH=""
 export SINGULARITY_BINDPATH=""
+container_python="${PYTHON_CONTAINER_PYTHON:-python3}"
 
 "$runtime" exec --cleanenv \
   "${no_mount_args[@]}" \
   "${bind_args[@]}" \
   "$PYTHON_CONTAINER_IMAGE" \
-  python "$PYTHON_SCRIPT" "$@"
+  /bin/sh -c '
+    preferred_python="$1"
+    shift
+    if command -v "$preferred_python" >/dev/null 2>&1; then
+      exec "$preferred_python" "$@"
+    elif command -v python3 >/dev/null 2>&1; then
+      exec python3 "$@"
+    elif command -v python >/dev/null 2>&1; then
+      exec python "$@"
+    else
+      echo "ERROR: neither python3 nor python was found inside the Python container." >&2
+      exit 127
+    fi
+  ' sh "$container_python" "$PYTHON_SCRIPT" "$@"

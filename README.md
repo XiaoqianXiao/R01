@@ -63,6 +63,7 @@ The default example is set for Hyak-style execution with:
 CONTAINER_RUNTIME="apptainer"
 FMRIPREP_IMAGE="/gscratch/fang/images/fmriprep-25.2.5.sif"
 PYTHON_CONTAINER_IMAGE="/gscratch/fang/images/jupyter.sif"
+PYTHON_CONTAINER_PYTHON="python3"
 APPTAINER_NO_MOUNT="bind-paths"
 FS_LICENSE="/mmfs1/home/xxqian/files/fs_license.txt"
 HYAK_ACCOUNT="fang"
