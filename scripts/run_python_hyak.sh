@@ -42,6 +42,7 @@ if [[ "$runtime" == "docker" ]]; then
 fi
 
 export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}"
+export LD_PRELOAD="${LD_PRELOAD:-}"
 
 if command -v module >/dev/null 2>&1; then
   module load apptainer >/dev/null 2>&1 || module load singularity >/dev/null 2>&1 || true

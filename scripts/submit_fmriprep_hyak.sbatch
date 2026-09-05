@@ -70,6 +70,7 @@ fi
 export OMP_NUM_THREADS="${OMP_NTHREADS}"
 export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS="${OMP_NTHREADS}"
 export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}"
+export LD_PRELOAD="${LD_PRELOAD:-}"
 
 if command -v module >/dev/null 2>&1; then
   module purge || true

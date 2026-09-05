@@ -148,6 +148,8 @@ The scripts also archive a multi-session manifest recording the subject/session 
 
 On Hyak, `APPTAINER_NO_MOUNT="bind-paths"` prevents Apptainer from trying to auto-mount unavailable site paths such as `/var/run/slurm`; the scripts provide the needed project mounts explicitly.
 
+Leave `TEMPLATEFLOW_HOME=""` unless a real TemplateFlow cache exists on Hyak. fMRIPrep can still use its container/default TemplateFlow behavior.
+
 The FreeSurfer subjects directory is stored separately at:
 
 ```bash
