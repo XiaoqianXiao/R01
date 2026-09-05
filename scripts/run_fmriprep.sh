@@ -115,12 +115,11 @@ fi
 
 if [[ -z "${TEMPLATEFLOW_HOME:-}" ]]; then
   if [[ -z "${PROJECT_DIR:-}" ]]; then
-    echo "ERROR: TEMPLATEFLOW_HOME is empty and PROJECT_DIR is not set in $CONFIG_ENV" >&2
-    echo "Set TEMPLATEFLOW_HOME to a populated shared TemplateFlow cache before running fMRIPrep on Hyak." >&2
+    echo "ERROR: PROJECT_DIR is not set in $CONFIG_ENV" >&2
+    echo "PROJECT_DIR is needed to locate the project TemplateFlow cache." >&2
     exit 2
   fi
   TEMPLATEFLOW_HOME="${PROJECT_DIR}/templateflow"
-  echo "TEMPLATEFLOW_HOME is empty; using default: $TEMPLATEFLOW_HOME" >&2
 fi
 
 docker_templateflow_args=()

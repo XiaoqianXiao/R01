@@ -43,7 +43,6 @@ Also set:
 - `PYTHON_CONTAINER_IMAGE` to the Python/Jupyter `.sif`, usually `/gscratch/fang/images/jupyter.sif`
 - `PYTHON_CONTAINER_PYTHON` to the Python executable inside that container, usually `python3`
 - `APPTAINER_NO_MOUNT` to `bind-paths` so Hyak does not try to auto-mount unavailable site paths
-- `TEMPLATEFLOW_HOME` to a populated TemplateFlow cache, usually `${PROJECT_DIR}/templateflow`; if left empty, the scripts use that default
 - `FS_LICENSE` to the FreeSurfer license on Hyak, usually `/mmfs1/home/xxqian/files/fs_license.txt`
 - `HYAK_ARRAY_CONCURRENCY`; controls how many subject jobs can run at the same time
 - `PARTICIPANT_LABELS`; only used for manual/non-array runs
@@ -55,14 +54,21 @@ If the fMRIPrep Apptainer image has not been built yet, submit the existing imag
 sbatch scripts/build_fmriprep.sbatch
 ```
 
-Populate TemplateFlow before submitting fMRIPrep on compute nodes. This avoids
-runtime failures when a job tries to download templates from S3 on a DNS- or
-internet-restricted node. If `TEMPLATEFLOW_HOME=""`, the prefetch script uses
-`${PROJECT_DIR}/templateflow` automatically:
+Populate the project TemplateFlow cache before submitting fMRIPrep on compute
+nodes. No TemplateFlow customization is needed; the scripts use
+`${PROJECT_DIR}/templateflow` automatically when `TEMPLATEFLOW_HOME` is empty.
+This avoids runtime failures when a job tries to download templates from S3 on
+a DNS- or internet-restricted node:
 
 ```bash
 scripts/prefetch_templateflow_hyak.sh config/mri_preproc.env
 ```
+
+If the prefetch script reports that it cannot resolve
+`templateflow.s3.amazonaws.com`, the current Hyak context also lacks
+internet/DNS access. Run the prefetch from a login/data-transfer node with
+internet access, or copy a populated TemplateFlow cache into
+`${PROJECT_DIR}/templateflow` before submitting the array.
 
 Submit the full pre-production pilot job:
 
