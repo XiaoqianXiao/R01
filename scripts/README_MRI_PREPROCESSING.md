@@ -37,7 +37,7 @@ Also set:
 - `CONTAINER_RUNTIME` to `apptainer` or `singularity`
 - `FMRIPREP_IMAGE` to the frozen fMRIPrep 25.2.5 `.sif`, usually `/gscratch/fang/images/fmriprep-25.2.5.sif`
 - `FS_LICENSE` to the FreeSurfer license on Hyak, usually `/mmfs1/home/xxqian/files/fs_license.txt`
-- `PARTICIPANT_LABELS` to a small pilot sample before cohort-wide production
+- `PARTICIPANT_LABELS`; use a small pilot sample before production, then leave it empty to run all subjects
 - `NTHREADS`, `OMP_NTHREADS`, and `MEM_MB` to match the SLURM request
 
 If the fMRIPrep Apptainer image has not been built yet, submit the existing image-build job first:
@@ -56,6 +56,12 @@ Submit the canonical fMRIPrep job:
 
 ```bash
 sbatch scripts/submit_fmriprep_hyak.sbatch config/mri_preproc.env
+```
+
+For all subjects, keep this line in `config/mri_preproc.env`:
+
+```bash
+PARTICIPANT_LABELS=""
 ```
 
 For a larger request:

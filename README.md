@@ -49,7 +49,7 @@ At minimum, verify:
 - `FMRIPREP_OUT`
 - `FS_LICENSE`, usually `/mmfs1/home/xxqian/files/fs_license.txt`
 - `FMRIPREP_IMAGE`
-- `PARTICIPANT_LABELS`
+- `PARTICIPANT_LABELS`; leave it empty to run all subjects
 - `NTHREADS`, `OMP_NTHREADS`, and `MEM_MB`
 
 The default example is set for Hyak-style execution with:
@@ -74,7 +74,7 @@ This creates the fMRIPrep `25.2.5` image and records checksum/metadata in `/gscr
 
 ## Run the Pre-Production Pilot
 
-Set `PARTICIPANT_LABELS` in `config/mri_preproc.env` to a representative pilot sample, then submit:
+For a pre-production pilot, set `PARTICIPANT_LABELS` in `config/mri_preproc.env` to a representative sample, then submit:
 
 ```bash
 sbatch scripts/submit_preproduction_pilot_hyak.sbatch config/mri_preproc.env
@@ -90,7 +90,13 @@ The pilot wrapper runs:
 
 ## Run Canonical fMRIPrep
 
-After the pilot and manual QC are accepted, submit the canonical fMRIPrep job:
+After the pilot and manual QC are accepted, run all subjects by leaving `PARTICIPANT_LABELS` empty:
+
+```bash
+PARTICIPANT_LABELS=""
+```
+
+Then submit the canonical fMRIPrep job:
 
 ```bash
 sbatch scripts/submit_fmriprep_hyak.sbatch config/mri_preproc.env
