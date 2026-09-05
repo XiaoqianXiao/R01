@@ -113,6 +113,16 @@ if [[ -n "${EXTRA_FMRIPREP_ARGS:-}" ]]; then
   fmriprep_args+=("${extra_args[@]}")
 fi
 
+if [[ -z "${TEMPLATEFLOW_HOME:-}" ]]; then
+  if [[ -z "${PROJECT_DIR:-}" ]]; then
+    echo "ERROR: TEMPLATEFLOW_HOME is empty and PROJECT_DIR is not set in $CONFIG_ENV" >&2
+    echo "Set TEMPLATEFLOW_HOME to a populated shared TemplateFlow cache before running fMRIPrep on Hyak." >&2
+    exit 2
+  fi
+  TEMPLATEFLOW_HOME="${PROJECT_DIR}/templateflow"
+  echo "TEMPLATEFLOW_HOME is empty; using default: $TEMPLATEFLOW_HOME" >&2
+fi
+
 docker_templateflow_args=()
 apptainer_templateflow_args=()
 if [[ -n "${TEMPLATEFLOW_HOME:-}" && -d "${TEMPLATEFLOW_HOME}" ]]; then
@@ -126,7 +136,9 @@ if [[ -n "${TEMPLATEFLOW_HOME:-}" && -d "${TEMPLATEFLOW_HOME}" ]]; then
   docker_templateflow_args=(-v "${TEMPLATEFLOW_HOME}:/templateflow" -e TEMPLATEFLOW_HOME=/templateflow)
   apptainer_templateflow_args=(-B "${TEMPLATEFLOW_HOME}:/templateflow" --env TEMPLATEFLOW_HOME=/templateflow)
 elif [[ -n "${TEMPLATEFLOW_HOME:-}" ]]; then
-  echo "WARNING: TEMPLATEFLOW_HOME does not exist and will not be mounted: ${TEMPLATEFLOW_HOME}" >&2
+  echo "ERROR: TEMPLATEFLOW_HOME does not exist: ${TEMPLATEFLOW_HOME}" >&2
+  echo "Run scripts/prefetch_templateflow_hyak.sh $CONFIG_ENV from an internet-enabled Hyak context, then resubmit." >&2
+  exit 2
 fi
 
 apptainer_no_mount_args=()

@@ -22,8 +22,12 @@ CONFIG_ENV="$1"
 source "$CONFIG_ENV"
 
 if [[ -z "${TEMPLATEFLOW_HOME:-}" ]]; then
-  echo "ERROR: TEMPLATEFLOW_HOME is not set in $CONFIG_ENV" >&2
-  exit 2
+  if [[ -z "${PROJECT_DIR:-}" ]]; then
+    echo "ERROR: TEMPLATEFLOW_HOME is empty and PROJECT_DIR is not set in $CONFIG_ENV" >&2
+    exit 2
+  fi
+  TEMPLATEFLOW_HOME="${PROJECT_DIR}/templateflow"
+  echo "TEMPLATEFLOW_HOME is empty; using default: $TEMPLATEFLOW_HOME" >&2
 fi
 
 if [[ -z "${FMRIPREP_IMAGE:-}" || ! -f "$FMRIPREP_IMAGE" ]]; then
