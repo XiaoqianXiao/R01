@@ -35,6 +35,24 @@ if [[ ! -d "$BIDS_DIR" ]]; then
   exit 2
 fi
 
+if [[ -z "${TEMPLATEFLOW_HOME:-}" ]]; then
+  if [[ -z "${PROJECT_DIR:-}" ]]; then
+    echo "ERROR: TEMPLATEFLOW_HOME is empty and PROJECT_DIR is not set in $CONFIG_ENV" >&2
+    echo "Set TEMPLATEFLOW_HOME to a populated shared TemplateFlow cache before submitting fMRIPrep." >&2
+    exit 2
+  fi
+  TEMPLATEFLOW_HOME="${PROJECT_DIR}/templateflow"
+  echo "TEMPLATEFLOW_HOME is empty; using default: $TEMPLATEFLOW_HOME" >&2
+fi
+
+required_template="${TEMPLATEFLOW_HOME}/tpl-MNI152NLin6Asym/tpl-MNI152NLin6Asym_res-01_T1w.nii.gz"
+if [[ ! -f "$required_template" ]]; then
+  echo "ERROR: TemplateFlow cache is not ready for offline Hyak fMRIPrep jobs." >&2
+  echo "Missing required file: $required_template" >&2
+  echo "Run scripts/prefetch_templateflow_hyak.sh $CONFIG_ENV from an internet-enabled Hyak context, then resubmit." >&2
+  exit 2
+fi
+
 timestamp="$(date +%Y%m%d_%H%M%S)"
 subject_list="${LOG_DIR}/fmriprep_subjects_${timestamp}.txt"
 session_manifest="${LOG_DIR}/fmriprep_multisession_manifest_${timestamp}.csv"

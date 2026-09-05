@@ -164,6 +164,7 @@ run_log="${LOG_DIR}/fmriprep_run_${log_label}_${array_label}_${timestamp}.log"
   echo "CONFIG_ENV=$CONFIG_ENV"
   echo "FMRIPREP_IMAGE=$FMRIPREP_IMAGE"
   echo "CONTAINER_RUNTIME=$CONTAINER_RUNTIME"
+  echo "TEMPLATEFLOW_HOME=$TEMPLATEFLOW_HOME"
   echo "PARTICIPANT_LABELS=${PARTICIPANT_LABELS:-}"
   printf 'fmriprep args:'
   printf ' %q' "${fmriprep_args[@]}"

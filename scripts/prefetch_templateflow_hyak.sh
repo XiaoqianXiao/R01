@@ -30,6 +30,8 @@ if [[ -z "${TEMPLATEFLOW_HOME:-}" ]]; then
   echo "TEMPLATEFLOW_HOME is empty; using default: $TEMPLATEFLOW_HOME" >&2
 fi
 
+echo "Resolved TEMPLATEFLOW_HOME=$TEMPLATEFLOW_HOME" >&2
+
 if [[ -z "${FMRIPREP_IMAGE:-}" || ! -f "$FMRIPREP_IMAGE" ]]; then
   echo "ERROR: FMRIPREP_IMAGE is not set or does not exist: ${FMRIPREP_IMAGE:-}" >&2
   exit 2

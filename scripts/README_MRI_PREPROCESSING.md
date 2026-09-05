@@ -76,7 +76,9 @@ Submit one parallel array task per subject:
 scripts/submit_fmriprep_array_hyak.sh config/mri_preproc.env
 ```
 
-The submitter writes a subject list and multi-session manifest into `LOG_DIR`, then submits:
+The submitter first checks that the TemplateFlow cache exists and contains the
+required template files. It then writes a subject list and multi-session
+manifest into `LOG_DIR`, then submits:
 
 ```bash
 one SLURM array task = one BIDS subject
