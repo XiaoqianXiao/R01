@@ -34,8 +34,16 @@ fi
 
 CONFIG_ENV="$1"
 SUBJECT_LIST="${2:-}"
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_DIR="${SLURM_SUBMIT_DIR:-$(pwd)}"
 cd "$REPO_DIR"
+
+if [[ "$CONFIG_ENV" != /* ]]; then
+  CONFIG_ENV="${REPO_DIR}/${CONFIG_ENV}"
+fi
+
+if [[ -n "$SUBJECT_LIST" && "$SUBJECT_LIST" != /* ]]; then
+  SUBJECT_LIST="${REPO_DIR}/${SUBJECT_LIST}"
+fi
 
 # shellcheck source=/dev/null
 source "$CONFIG_ENV"

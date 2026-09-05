@@ -21,6 +21,10 @@ CONFIG_ENV="$1"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_DIR"
 
+if [[ "$CONFIG_ENV" != /* ]]; then
+  CONFIG_ENV="${REPO_DIR}/${CONFIG_ENV}"
+fi
+
 # shellcheck source=/dev/null
 source "$CONFIG_ENV"
 
@@ -65,6 +69,6 @@ sbatch \
   --array="0-${last_index}%${concurrency}" \
   --partition="${HYAK_PARTITION:-ckpt-all}" \
   --time="${HYAK_TIME:-48:00:00}" \
-  "scripts/submit_fmriprep_hyak.sbatch" \
+  "${REPO_DIR}/scripts/submit_fmriprep_hyak.sbatch" \
   "$CONFIG_ENV" \
   "$subject_list"

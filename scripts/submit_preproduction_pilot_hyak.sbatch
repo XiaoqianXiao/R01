@@ -32,8 +32,12 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || $# -ne 1 ]]; then
 fi
 
 CONFIG_ENV="$1"
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_DIR="${SLURM_SUBMIT_DIR:-$(pwd)}"
 cd "$REPO_DIR"
+
+if [[ "$CONFIG_ENV" != /* ]]; then
+  CONFIG_ENV="${REPO_DIR}/${CONFIG_ENV}"
+fi
 
 # shellcheck source=/dev/null
 source "$CONFIG_ENV"
