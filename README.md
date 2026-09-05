@@ -63,6 +63,7 @@ The default example is set for Hyak-style execution with:
 CONTAINER_RUNTIME="apptainer"
 FMRIPREP_IMAGE="/gscratch/fang/images/fmriprep-25.2.5.sif"
 PYTHON_CONTAINER_IMAGE="/gscratch/fang/images/jupyter.sif"
+APPTAINER_NO_MOUNT="bind-paths"
 FS_LICENSE="/mmfs1/home/xxqian/files/fs_license.txt"
 HYAK_ACCOUNT="fang"
 HYAK_PARTITION="ckpt-all"
@@ -143,6 +144,8 @@ The launcher runs the frozen baseline from the preprocessing plan:
 ```
 
 The scripts also archive a multi-session manifest recording the subject/session rows found under `BIDS_DIR`. This documents the sessions available for the common-reference workflow.
+
+On Hyak, `APPTAINER_NO_MOUNT="bind-paths"` prevents Apptainer from trying to auto-mount unavailable site paths such as `/var/run/slurm`; the scripts provide the needed project mounts explicitly.
 
 The FreeSurfer subjects directory is stored separately at:
 

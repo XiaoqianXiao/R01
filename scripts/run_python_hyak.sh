@@ -63,7 +63,16 @@ for bind_path in "$REPO_DIR" "${PROJECT_DIR:-}" "${BIDS_DIR:-}" "${DERIVATIVES_D
   fi
 done
 
+no_mount_args=()
+if [[ -n "${APPTAINER_NO_MOUNT:-bind-paths}" ]]; then
+  no_mount_args=(--no-mount "${APPTAINER_NO_MOUNT:-bind-paths}")
+fi
+
+export APPTAINER_BINDPATH=""
+export SINGULARITY_BINDPATH=""
+
 "$runtime" exec --cleanenv \
+  "${no_mount_args[@]}" \
   "${bind_args[@]}" \
   "$PYTHON_CONTAINER_IMAGE" \
   python "$PYTHON_SCRIPT" "$@"

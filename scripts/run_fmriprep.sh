@@ -120,6 +120,14 @@ if [[ -n "${TEMPLATEFLOW_HOME:-}" ]]; then
   apptainer_templateflow_args=(-B "${TEMPLATEFLOW_HOME}:/templateflow" --env TEMPLATEFLOW_HOME=/templateflow)
 fi
 
+apptainer_no_mount_args=()
+if [[ -n "${APPTAINER_NO_MOUNT:-bind-paths}" ]]; then
+  apptainer_no_mount_args=(--no-mount "${APPTAINER_NO_MOUNT:-bind-paths}")
+fi
+
+export APPTAINER_BINDPATH=""
+export SINGULARITY_BINDPATH=""
+
 timestamp="$(date +%Y%m%d_%H%M%S)"
 log_label="all_subjects"
 if [[ -n "${FMRIPREP_SINGLE_SUBJECT:-}" ]]; then
@@ -155,6 +163,7 @@ case "$CONTAINER_RUNTIME" in
     ;;
   apptainer)
     apptainer run --cleanenv \
+      "${apptainer_no_mount_args[@]}" \
       -B "${BIDS_DIR}:/data:ro" \
       -B "${FMRIPREP_OUT}:/out" \
       -B "${FS_SUBJECTS_DIR}:/fs" \
@@ -166,6 +175,7 @@ case "$CONTAINER_RUNTIME" in
     ;;
   singularity)
     singularity run --cleanenv \
+      "${apptainer_no_mount_args[@]}" \
       -B "${BIDS_DIR}:/data:ro" \
       -B "${FMRIPREP_OUT}:/out" \
       -B "${FS_SUBJECTS_DIR}:/fs" \
