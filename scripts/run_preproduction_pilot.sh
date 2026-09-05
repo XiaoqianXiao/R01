@@ -28,9 +28,16 @@ mkdir -p "$LOG_DIR" "$PROVENANCE_DIR"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 timestamp="$(date +%Y%m%d_%H%M%S)"
+subject_list="${LOG_DIR}/fmriprep_pilot_subjects_${timestamp}.txt"
+session_manifest="${LOG_DIR}/fmriprep_pilot_multisession_manifest_${timestamp}.csv"
 sdc_report="${LOG_DIR}/sdc_metadata_audit_${timestamp}.csv"
 output_report="${LOG_DIR}/fmriprep_output_check_${timestamp}.csv"
 manifest="${PROVENANCE_DIR}/preproduction_manifest_${timestamp}.json"
+
+"${SCRIPT_DIR}/make_multisession_manifest.py" \
+  "$BIDS_DIR" \
+  --manifest "$session_manifest" \
+  --subject-list "$subject_list"
 
 "${SCRIPT_DIR}/run_bids_validator.sh" "$CONFIG_ENV"
 
@@ -60,11 +67,14 @@ python "${SCRIPT_DIR}/freeze_release_manifest.py" \
   --bids-validator-log "$latest_bids_log" \
   --sdc-audit "$sdc_report" \
   --output "$manifest" \
+  --extra-file "$session_manifest" \
   --extra-file "${SCRIPT_DIR}/run_fmriprep.sh" \
+  --extra-file "${SCRIPT_DIR}/make_multisession_manifest.py" \
   --extra-file "${SCRIPT_DIR}/audit_sdc_metadata.py" \
   --extra-file "${SCRIPT_DIR}/check_fmriprep_outputs.py"
 
 echo "Pre-production pilot complete."
+echo "Session manifest: $session_manifest"
 echo "SDC report: $sdc_report"
 echo "Output report: $output_report"
 echo "Manifest: $manifest"

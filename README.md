@@ -13,10 +13,12 @@ R01/
 ├── scripts/
 │   ├── build_fmriprep.sbatch
 │   ├── submit_preproduction_pilot_hyak.sbatch
+│   ├── submit_fmriprep_array_hyak.sh
 │   ├── submit_fmriprep_hyak.sbatch
 │   ├── run_preproduction_pilot.sh
 │   ├── run_fmriprep.sh
 │   ├── run_bids_validator.sh
+│   ├── make_multisession_manifest.py
 │   ├── audit_sdc_metadata.py
 │   ├── check_fmriprep_outputs.py
 │   ├── freeze_release_manifest.py
@@ -49,7 +51,8 @@ At minimum, verify:
 - `FMRIPREP_OUT`
 - `FS_LICENSE`, usually `/mmfs1/home/xxqian/files/fs_license.txt`
 - `FMRIPREP_IMAGE`
-- `PARTICIPANT_LABELS`; leave it empty to run all subjects
+- `HYAK_ARRAY_CONCURRENCY`
+- `PARTICIPANT_LABELS`, only for manual/non-array runs
 - `NTHREADS`, `OMP_NTHREADS`, and `MEM_MB`
 
 The default example is set for Hyak-style execution with:
@@ -90,23 +93,36 @@ The pilot wrapper runs:
 
 ## Run Canonical fMRIPrep
 
-After the pilot and manual QC are accepted, run all subjects by leaving `PARTICIPANT_LABELS` empty:
+After the pilot and manual QC are accepted, run all subjects in parallel with a SLURM job array:
 
 ```bash
-PARTICIPANT_LABELS=""
+scripts/submit_fmriprep_array_hyak.sh config/mri_preproc.env
 ```
 
-Then submit the canonical fMRIPrep job:
+This creates a subject list from:
+
+```bash
+/gscratch/scrubbed/fanglab/xiaoqian/IFOCUS/sourcedata/nii/sub-*
+```
+
+and submits:
+
+```bash
+one SLURM array task = one subject
+```
+
+Because all participants have multiple sessions, the array is deliberately **subject-level**, not session-level. Each task passes one `--participant-label` to fMRIPrep and keeps all of that participant's sessions visible, so `--subject-anatomical-reference unbiased` can build the shared within-subject anatomical reference. Do not add `--session-label` for the canonical release.
+
+Control the maximum number of simultaneous subject jobs in `config/mri_preproc.env`:
+
+```bash
+HYAK_ARRAY_CONCURRENCY="10"
+```
+
+To run one non-array fMRIPrep job manually:
 
 ```bash
 sbatch scripts/submit_fmriprep_hyak.sbatch config/mri_preproc.env
-```
-
-To request more resources:
-
-```bash
-sbatch --cpus-per-task=24 --mem=96G --time=72:00:00 \
-  scripts/submit_fmriprep_hyak.sbatch config/mri_preproc.env
 ```
 
 ## Canonical fMRIPrep Settings
@@ -122,6 +138,8 @@ The launcher runs the frozen baseline from the preprocessing plan:
 --slice-time-ref 0.5
 --random-seed 20260904
 ```
+
+The scripts also archive a multi-session manifest recording the subject/session rows found under `BIDS_DIR`. This documents the sessions available for the common-reference workflow.
 
 The FreeSurfer subjects directory is stored separately at:
 

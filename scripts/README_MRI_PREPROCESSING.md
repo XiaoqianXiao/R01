@@ -7,8 +7,10 @@ The plan remains the scientific specification; these scripts are operational hel
 
 - `config/mri_preproc.env.example`: copy to `config/mri_preproc.env` on Hyak and edit project paths, Apptainer/Singularity image, FreeSurfer license, resource limits, and participant labels.
 - `scripts/run_bids_validator.sh`: runs BIDS validation and saves a log.
+- `scripts/make_multisession_manifest.py`: records each subject/session and whether anat, func, and fmap files are present.
 - `scripts/audit_sdc_metadata.py`: audits AP/PA fieldmap JSON metadata, `B0FieldIdentifier` / `B0FieldSource` mappings, `IntendedFor`, readout metadata, and optional fieldmap geometry.
 - `scripts/run_fmriprep.sh`: runs the canonical fMRIPrep 25.2.5 workflow with `func`, `T1w`, `MNI152NLin2009cAsym:res-native`, `fsnative`, CIFTI 91k, MSMSulc, explicit session tracking, and `--slice-time-ref 0.5`.
+- `scripts/submit_fmriprep_array_hyak.sh`: generates a subject list from `BIDS_DIR` and submits one SLURM array task per subject.
 - `scripts/submit_fmriprep_hyak.sbatch`: submits the canonical fMRIPrep worker as a Hyak SLURM job.
 - `scripts/submit_preproduction_pilot_hyak.sbatch`: submits the full pre-production pilot wrapper as a Hyak SLURM job.
 - `scripts/check_fmriprep_outputs.py`: checks that expected canonical derivatives exist after a run.
@@ -37,7 +39,8 @@ Also set:
 - `CONTAINER_RUNTIME` to `apptainer` or `singularity`
 - `FMRIPREP_IMAGE` to the frozen fMRIPrep 25.2.5 `.sif`, usually `/gscratch/fang/images/fmriprep-25.2.5.sif`
 - `FS_LICENSE` to the FreeSurfer license on Hyak, usually `/mmfs1/home/xxqian/files/fs_license.txt`
-- `PARTICIPANT_LABELS`; use a small pilot sample before production, then leave it empty to run all subjects
+- `HYAK_ARRAY_CONCURRENCY`; controls how many subject jobs can run at the same time
+- `PARTICIPANT_LABELS`; only used for manual/non-array runs
 - `NTHREADS`, `OMP_NTHREADS`, and `MEM_MB` to match the SLURM request
 
 If the fMRIPrep Apptainer image has not been built yet, submit the existing image-build job first:
@@ -52,23 +55,24 @@ Submit the full pre-production pilot job:
 sbatch scripts/submit_preproduction_pilot_hyak.sbatch config/mri_preproc.env
 ```
 
-Submit the canonical fMRIPrep job:
+Submit one parallel array task per subject:
 
 ```bash
-sbatch scripts/submit_fmriprep_hyak.sbatch config/mri_preproc.env
+scripts/submit_fmriprep_array_hyak.sh config/mri_preproc.env
 ```
 
-For all subjects, keep this line in `config/mri_preproc.env`:
+The submitter writes a subject list and multi-session manifest into `LOG_DIR`, then submits:
 
 ```bash
-PARTICIPANT_LABELS=""
+one SLURM array task = one BIDS subject
 ```
 
-For a larger request:
+For this multi-session project, do not split production into one array task per session. Each subject task keeps all intended sessions visible to fMRIPrep, uses `--subject-anatomical-reference unbiased`, and explicitly uses `--track-sessions`. This preserves a common within-subject anatomical reference while keeping functional outputs session- and run-specific.
+
+To change the number of subjects running at the same time, edit:
 
 ```bash
-sbatch --cpus-per-task=24 --mem=96G --time=72:00:00 \
-  scripts/submit_fmriprep_hyak.sbatch config/mri_preproc.env
+HYAK_ARRAY_CONCURRENCY="10"
 ```
 
 To run the full pre-production wrapper manually inside an interactive Hyak allocation:

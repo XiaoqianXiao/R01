@@ -39,6 +39,8 @@ class Issue:
 class JsonSidecar:
     path: Path
     data: dict[str, Any]
+    subject: str
+    session: str
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -60,6 +62,13 @@ def as_list(value: Any) -> list[str]:
     if isinstance(value, list):
         return [item for item in value if isinstance(item, str)]
     return []
+
+
+def entity_from_parts(parts: tuple[str, ...], prefix: str, default: str) -> str:
+    for part in parts:
+        if part.startswith(prefix):
+            return part
+    return default
 
 
 def json_to_image_path(json_path: Path) -> Path | None:
@@ -90,7 +99,12 @@ def collect_sidecars(bids_dir: Path) -> tuple[list[JsonSidecar], list[JsonSideca
     for path in sorted(bids_dir.rglob("*.json")):
         rel_parts = path.relative_to(bids_dir).parts
         try:
-            sidecar = JsonSidecar(path=path, data=load_json(path))
+            sidecar = JsonSidecar(
+                path=path,
+                data=load_json(path),
+                subject=entity_from_parts(rel_parts, "sub-", "unknown-subject"),
+                session=entity_from_parts(rel_parts, "ses-", "single-session"),
+            )
         except ValueError as exc:
             print(f"ERROR: {exc}", file=sys.stderr)
             continue
@@ -121,34 +135,39 @@ def audit_fmap_metadata(fmaps: list[JsonSidecar]) -> list[Issue]:
     return issues
 
 
-def audit_bold_sources(bolds: list[JsonSidecar], fmap_ids: set[str]) -> list[Issue]:
+def audit_bold_sources(bolds: list[JsonSidecar], fmap_ids_by_subject: dict[str, set[str]]) -> list[Issue]:
     issues: list[Issue] = []
     for bold in bolds:
         sources = as_list(bold.data.get("B0FieldSource"))
         if not sources:
             issues.append(Issue("FAIL", bold.path, "B0FieldSource", "missing project-standard fieldmap source"))
             continue
-        missing = [source for source in sources if source not in fmap_ids]
+        subject_fmap_ids = fmap_ids_by_subject.get(bold.subject, set())
+        missing = [source for source in sources if source not in subject_fmap_ids]
         if missing:
-            issues.append(Issue("FAIL", bold.path, "B0FieldSource", f"unknown B0FieldIdentifier(s): {', '.join(missing)}"))
+            issues.append(Issue("FAIL", bold.path, "B0FieldSource", f"unknown subject-level B0FieldIdentifier(s): {', '.join(missing)}"))
     return issues
 
 
 def audit_identifier_groups(fmaps: list[JsonSidecar]) -> list[Issue]:
     issues: list[Issue] = []
-    groups: dict[str, list[JsonSidecar]] = {}
+    groups: dict[tuple[str, str], list[JsonSidecar]] = {}
     for fmap in fmaps:
         for identifier in as_list(fmap.data.get("B0FieldIdentifier")):
-            groups.setdefault(identifier, []).append(fmap)
+            groups.setdefault((fmap.subject, identifier), []).append(fmap)
 
-    for identifier, members in sorted(groups.items()):
+    for (subject, identifier), members in sorted(groups.items()):
+        sessions = {member.session for member in members}
+        if len(sessions) > 1:
+            issues.append(Issue("FAIL", members[0].path, "B0FieldIdentifier", f"{subject}/{identifier}: reused across sessions; identifiers should encode session/acquisition identity"))
+
         directions = [member.data.get("PhaseEncodingDirection") for member in members]
         valid_directions = [direction for direction in directions if isinstance(direction, str)]
         has_opposite_pair = any(PE_OPPOSITES.get(direction) in valid_directions for direction in valid_directions)
         if len(members) < 2:
-            issues.append(Issue("FAIL", members[0].path, "B0FieldIdentifier", f"{identifier}: only one fieldmap sidecar in group"))
+            issues.append(Issue("FAIL", members[0].path, "B0FieldIdentifier", f"{subject}/{identifier}: only one fieldmap sidecar in group"))
         elif not has_opposite_pair:
-            issues.append(Issue("FAIL", members[0].path, "PhaseEncodingDirection", f"{identifier}: no opposite AP/PA phase-encoding pair"))
+            issues.append(Issue("FAIL", members[0].path, "PhaseEncodingDirection", f"{subject}/{identifier}: no opposite AP/PA phase-encoding pair"))
 
         geometries: dict[tuple[tuple[int, ...], tuple[float, ...], tuple[float, ...]], list[Path]] = {}
         for member in members:
@@ -161,7 +180,23 @@ def audit_identifier_groups(fmaps: list[JsonSidecar]) -> list[Issue]:
                 continue
             geometries.setdefault(geometry, []).append(member.path)
         if len(geometries) > 1:
-            issues.append(Issue("WARN", members[0].path, "geometry", f"{identifier}: fieldmap image geometry differs within group"))
+            issues.append(Issue("WARN", members[0].path, "geometry", f"{subject}/{identifier}: fieldmap image geometry differs within group"))
+    return issues
+
+
+def audit_cross_session_sources(fmaps: list[JsonSidecar], bolds: list[JsonSidecar]) -> list[Issue]:
+    issues: list[Issue] = []
+    fmap_lookup: dict[tuple[str, str], list[JsonSidecar]] = {}
+    for fmap in fmaps:
+        for identifier in as_list(fmap.data.get("B0FieldIdentifier")):
+            fmap_lookup.setdefault((fmap.subject, identifier), []).append(fmap)
+
+    for bold in bolds:
+        for source in as_list(bold.data.get("B0FieldSource")):
+            source_fmaps = fmap_lookup.get((bold.subject, source), [])
+            for fmap in source_fmaps:
+                if fmap.session != bold.session:
+                    issues.append(Issue("FAIL", bold.path, "B0FieldSource", f"{source}: crosses session boundary from {bold.session} to {fmap.session}"))
     return issues
 
 
@@ -211,11 +246,14 @@ def main() -> int:
         parser.error(f"BIDS directory does not exist: {args.bids_dir}")
 
     fmaps, bolds = collect_sidecars(args.bids_dir)
-    fmap_ids = {identifier for fmap in fmaps for identifier in as_list(fmap.data.get("B0FieldIdentifier"))}
+    fmap_ids_by_subject: dict[str, set[str]] = {}
+    for fmap in fmaps:
+        fmap_ids_by_subject.setdefault(fmap.subject, set()).update(as_list(fmap.data.get("B0FieldIdentifier")))
     issues = []
     issues.extend(audit_fmap_metadata(fmaps))
-    issues.extend(audit_bold_sources(bolds, fmap_ids))
+    issues.extend(audit_bold_sources(bolds, fmap_ids_by_subject))
     issues.extend(audit_identifier_groups(fmaps))
+    issues.extend(audit_cross_session_sources(fmaps, bolds))
     issues.extend(audit_intended_for(fmaps, bolds, args.bids_dir))
 
     write_report(issues, args.output)
