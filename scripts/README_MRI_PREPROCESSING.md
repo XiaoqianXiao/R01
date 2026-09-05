@@ -7,6 +7,7 @@ The plan remains the scientific specification; these scripts are operational hel
 
 - `config/mri_preproc.env.example`: copy to `config/mri_preproc.env` on Hyak and edit project paths, Apptainer/Singularity image, FreeSurfer license, resource limits, and participant labels.
 - `scripts/run_bids_validator.sh`: runs BIDS validation and saves a log.
+- `scripts/prefetch_templateflow_hyak.sh`: populates the TemplateFlow cache before offline Hyak fMRIPrep jobs.
 - `scripts/run_python_hyak.sh`: runs Python helper scripts inside `/gscratch/fang/images/jupyter.sif`.
 - `scripts/make_multisession_manifest.py`: records each subject/session and whether anat, func, and fmap files are present.
 - `scripts/audit_sdc_metadata.py`: audits AP/PA fieldmap JSON metadata, `B0FieldIdentifier` / `B0FieldSource` mappings, `IntendedFor`, readout metadata, and optional fieldmap geometry.
@@ -42,6 +43,7 @@ Also set:
 - `PYTHON_CONTAINER_IMAGE` to the Python/Jupyter `.sif`, usually `/gscratch/fang/images/jupyter.sif`
 - `PYTHON_CONTAINER_PYTHON` to the Python executable inside that container, usually `python3`
 - `APPTAINER_NO_MOUNT` to `bind-paths` so Hyak does not try to auto-mount unavailable site paths
+- `TEMPLATEFLOW_HOME` to a populated TemplateFlow cache, usually `${PROJECT_DIR}/templateflow`
 - `FS_LICENSE` to the FreeSurfer license on Hyak, usually `/mmfs1/home/xxqian/files/fs_license.txt`
 - `HYAK_ARRAY_CONCURRENCY`; controls how many subject jobs can run at the same time
 - `PARTICIPANT_LABELS`; only used for manual/non-array runs
@@ -51,6 +53,14 @@ If the fMRIPrep Apptainer image has not been built yet, submit the existing imag
 
 ```bash
 sbatch scripts/build_fmriprep.sbatch
+```
+
+Populate TemplateFlow before submitting fMRIPrep on compute nodes. This avoids
+runtime failures when a job tries to download templates from S3 on a DNS- or
+internet-restricted node:
+
+```bash
+scripts/prefetch_templateflow_hyak.sh config/mri_preproc.env
 ```
 
 Submit the full pre-production pilot job:
