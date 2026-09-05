@@ -45,9 +45,9 @@ if [[ -z "${TEMPLATEFLOW_HOME:-}" ]]; then
 fi
 
 required_template="${TEMPLATEFLOW_HOME}/tpl-MNI152NLin6Asym/tpl-MNI152NLin6Asym_res-01_T1w.nii.gz"
-if [[ ! -f "$required_template" ]]; then
+if [[ ! -s "$required_template" ]]; then
   echo "ERROR: TemplateFlow cache is not ready for offline Hyak fMRIPrep jobs." >&2
-  echo "Missing required file: $required_template" >&2
+  echo "Missing or empty required file: $required_template" >&2
   echo "Run scripts/prefetch_templateflow_hyak.sh $CONFIG_ENV from an internet-enabled Hyak context, then resubmit." >&2
   exit 2
 fi

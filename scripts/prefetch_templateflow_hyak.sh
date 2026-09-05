@@ -117,8 +117,8 @@ for template in templates:
     print(f"  cached {len(files)} files", flush=True)
 
 required = Path("/templateflow/tpl-MNI152NLin6Asym/tpl-MNI152NLin6Asym_res-01_T1w.nii.gz")
-if not required.exists():
-    raise SystemExit(f"Required TemplateFlow file is still missing: {required}")
+if not required.is_file() or required.stat().st_size == 0:
+    raise SystemExit(f"Required TemplateFlow file is missing or empty: {required}")
 
 print("TemplateFlow cache is ready.", flush=True)
 PY

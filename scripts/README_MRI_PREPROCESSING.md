@@ -7,6 +7,7 @@ The plan remains the scientific specification; these scripts are operational hel
 
 - `config/mri_preproc.env.example`: copy to `config/mri_preproc.env` on Hyak and edit project paths, Apptainer/Singularity image, FreeSurfer license, resource limits, and participant labels.
 - `scripts/run_bids_validator.sh`: runs BIDS validation and saves a log.
+- `scripts/download_templateflow_cache.sh`: downloads and packages the TemplateFlow cache on a machine with internet access.
 - `scripts/prefetch_templateflow_hyak.sh`: populates the TemplateFlow cache before offline Hyak fMRIPrep jobs.
 - `scripts/run_python_hyak.sh`: runs Python helper scripts inside `/gscratch/fang/images/jupyter.sif`.
 - `scripts/make_multisession_manifest.py`: records each subject/session and whether anat, func, and fmap files are present.
@@ -69,6 +70,13 @@ If the prefetch script reports that it cannot resolve
 internet/DNS access. Run the prefetch from a login/data-transfer node with
 internet access, or copy a populated TemplateFlow cache into
 `${PROJECT_DIR}/templateflow` before submitting the array.
+
+To download the cache somewhere else and package it for transfer:
+
+```bash
+scripts/download_templateflow_cache.sh
+scp templateflow_download/templateflow.tar.gz YOUR_HYAK_USER@klone.hyak.uw.edu:/gscratch/scrubbed/fanglab/xiaoqian/IFOCUS/
+```
 
 Submit the full pre-production pilot job:
 
