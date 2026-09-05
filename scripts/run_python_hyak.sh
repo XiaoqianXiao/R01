@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  scripts/run_python_hyak.sh CONFIG_ENV PYTHON_SCRIPT [ARGS...]
+
+Runs a repository Python helper inside the configured Hyak Python container.
+USAGE
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || $# -lt 2 ]]; then
+  usage
+  exit 0
+fi
+
+CONFIG_ENV="$1"
+shift
+
+PYTHON_SCRIPT="$1"
+shift
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# shellcheck source=/dev/null
+source "$CONFIG_ENV"
+
+if [[ -z "${PYTHON_CONTAINER_IMAGE:-}" ]]; then
+  echo "ERROR: PYTHON_CONTAINER_IMAGE is not set in $CONFIG_ENV" >&2
+  exit 2
+fi
+
+if [[ ! -f "$PYTHON_CONTAINER_IMAGE" ]]; then
+  echo "ERROR: Python container not found: $PYTHON_CONTAINER_IMAGE" >&2
+  exit 2
+fi
+
+runtime="${CONTAINER_RUNTIME:-apptainer}"
+if [[ "$runtime" == "docker" ]]; then
+  runtime="apptainer"
+fi
+
+if command -v module >/dev/null 2>&1; then
+  module load apptainer >/dev/null 2>&1 || module load singularity >/dev/null 2>&1 || true
+fi
+
+if ! command -v "$runtime" >/dev/null 2>&1; then
+  if command -v apptainer >/dev/null 2>&1; then
+    runtime="apptainer"
+  elif command -v singularity >/dev/null 2>&1; then
+    runtime="singularity"
+  else
+    echo "ERROR: Apptainer/Singularity is not available for Python container execution." >&2
+    exit 127
+  fi
+fi
+
+bind_args=()
+for bind_path in "$REPO_DIR" "${PROJECT_DIR:-}" "${BIDS_DIR:-}" "${DERIVATIVES_DIR:-}" "${LOG_DIR:-}" "${PROVENANCE_DIR:-}" "/mmfs1/home/xxqian/files"; do
+  if [[ -n "$bind_path" && -e "$bind_path" ]]; then
+    bind_args+=(-B "${bind_path}:${bind_path}")
+  fi
+done
+
+"$runtime" exec --cleanenv \
+  "${bind_args[@]}" \
+  "$PYTHON_CONTAINER_IMAGE" \
+  python "$PYTHON_SCRIPT" "$@"

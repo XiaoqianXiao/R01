@@ -34,14 +34,20 @@ sdc_report="${LOG_DIR}/sdc_metadata_audit_${timestamp}.csv"
 output_report="${LOG_DIR}/fmriprep_output_check_${timestamp}.csv"
 manifest="${PROVENANCE_DIR}/preproduction_manifest_${timestamp}.json"
 
-"${SCRIPT_DIR}/make_multisession_manifest.py" \
+"${SCRIPT_DIR}/run_python_hyak.sh" \
+  "$CONFIG_ENV" \
+  "${SCRIPT_DIR}/make_multisession_manifest.py" \
   "$BIDS_DIR" \
   --manifest "$session_manifest" \
   --subject-list "$subject_list"
 
 "${SCRIPT_DIR}/run_bids_validator.sh" "$CONFIG_ENV"
 
-python "${SCRIPT_DIR}/audit_sdc_metadata.py" "$BIDS_DIR" --output "$sdc_report"
+"${SCRIPT_DIR}/run_python_hyak.sh" \
+  "$CONFIG_ENV" \
+  "${SCRIPT_DIR}/audit_sdc_metadata.py" \
+  "$BIDS_DIR" \
+  --output "$sdc_report"
 
 "${SCRIPT_DIR}/run_fmriprep.sh" "$CONFIG_ENV"
 
@@ -52,7 +58,9 @@ if [[ -n "${PARTICIPANT_LABELS:-}" ]]; then
   participant_args=(--participant-label "${participant_array[@]}")
 fi
 
-python "${SCRIPT_DIR}/check_fmriprep_outputs.py" \
+"${SCRIPT_DIR}/run_python_hyak.sh" \
+  "$CONFIG_ENV" \
+  "${SCRIPT_DIR}/check_fmriprep_outputs.py" \
   --fmriprep-dir "$FMRIPREP_OUT" \
   --freesurfer-dir "$FS_SUBJECTS_DIR" \
   "${participant_args[@]}" \
@@ -61,7 +69,9 @@ python "${SCRIPT_DIR}/check_fmriprep_outputs.py" \
 latest_bids_log="$(ls -t "${LOG_DIR}"/bids-validator_*.log | head -n 1)"
 latest_command_log="$(ls -t "${LOG_DIR}"/fmriprep_command_*.txt | head -n 1)"
 
-python "${SCRIPT_DIR}/freeze_release_manifest.py" \
+"${SCRIPT_DIR}/run_python_hyak.sh" \
+  "$CONFIG_ENV" \
+  "${SCRIPT_DIR}/freeze_release_manifest.py" \
   --config "$CONFIG_ENV" \
   --command-log "$latest_command_log" \
   --bids-validator-log "$latest_bids_log" \
@@ -69,6 +79,7 @@ python "${SCRIPT_DIR}/freeze_release_manifest.py" \
   --output "$manifest" \
   --extra-file "$session_manifest" \
   --extra-file "${SCRIPT_DIR}/run_fmriprep.sh" \
+  --extra-file "${SCRIPT_DIR}/run_python_hyak.sh" \
   --extra-file "${SCRIPT_DIR}/make_multisession_manifest.py" \
   --extra-file "${SCRIPT_DIR}/audit_sdc_metadata.py" \
   --extra-file "${SCRIPT_DIR}/check_fmriprep_outputs.py"

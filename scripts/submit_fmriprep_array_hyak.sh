@@ -35,7 +35,9 @@ timestamp="$(date +%Y%m%d_%H%M%S)"
 subject_list="${LOG_DIR}/fmriprep_subjects_${timestamp}.txt"
 session_manifest="${LOG_DIR}/fmriprep_multisession_manifest_${timestamp}.csv"
 
-python "${REPO_DIR}/scripts/make_multisession_manifest.py" \
+"${REPO_DIR}/scripts/run_python_hyak.sh" \
+  "$CONFIG_ENV" \
+  "${REPO_DIR}/scripts/make_multisession_manifest.py" \
   "$BIDS_DIR" \
   --manifest "$session_manifest" \
   --subject-list "$subject_list"

@@ -17,6 +17,7 @@ R01/
 │   ├── submit_fmriprep_hyak.sbatch
 │   ├── run_preproduction_pilot.sh
 │   ├── run_fmriprep.sh
+│   ├── run_python_hyak.sh
 │   ├── run_bids_validator.sh
 │   ├── make_multisession_manifest.py
 │   ├── audit_sdc_metadata.py
@@ -51,6 +52,7 @@ At minimum, verify:
 - `FMRIPREP_OUT`
 - `FS_LICENSE`, usually `/mmfs1/home/xxqian/files/fs_license.txt`
 - `FMRIPREP_IMAGE`
+- `PYTHON_CONTAINER_IMAGE`, usually `/gscratch/fang/images/jupyter.sif`
 - `HYAK_ARRAY_CONCURRENCY`
 - `PARTICIPANT_LABELS`, only for manual/non-array runs
 - `NTHREADS`, `OMP_NTHREADS`, and `MEM_MB`
@@ -60,6 +62,7 @@ The default example is set for Hyak-style execution with:
 ```bash
 CONTAINER_RUNTIME="apptainer"
 FMRIPREP_IMAGE="/gscratch/fang/images/fmriprep-25.2.5.sif"
+PYTHON_CONTAINER_IMAGE="/gscratch/fang/images/jupyter.sif"
 FS_LICENSE="/mmfs1/home/xxqian/files/fs_license.txt"
 HYAK_ACCOUNT="fang"
 HYAK_PARTITION="ckpt-all"
@@ -152,13 +155,16 @@ ${DERIVATIVES_DIR}/freesurfer
 Run only the SDC metadata audit:
 
 ```bash
-python scripts/audit_sdc_metadata.py "${BIDS_DIR}" --output "${LOG_DIR}/sdc_metadata_audit.csv"
+scripts/run_python_hyak.sh config/mri_preproc.env \
+  scripts/audit_sdc_metadata.py "${BIDS_DIR}" \
+  --output "${LOG_DIR}/sdc_metadata_audit.csv"
 ```
 
 Run only output checks after fMRIPrep:
 
 ```bash
-python scripts/check_fmriprep_outputs.py \
+scripts/run_python_hyak.sh config/mri_preproc.env \
+  scripts/check_fmriprep_outputs.py \
   --fmriprep-dir "${FMRIPREP_OUT}" \
   --freesurfer-dir "${FS_SUBJECTS_DIR}" \
   --output "${LOG_DIR}/fmriprep_output_check.csv"
@@ -167,7 +173,8 @@ python scripts/check_fmriprep_outputs.py \
 Generate a release manifest:
 
 ```bash
-python scripts/freeze_release_manifest.py \
+scripts/run_python_hyak.sh config/mri_preproc.env \
+  scripts/freeze_release_manifest.py \
   --config config/mri_preproc.env \
   --output "${PROVENANCE_DIR}/release_manifest.json"
 ```
