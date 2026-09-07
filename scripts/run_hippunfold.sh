@@ -22,6 +22,7 @@ source "$CONFIG_ENV"
 
 HIPPUNFOLD_OUT="${HIPPUNFOLD_OUT:-${DERIVATIVES_DIR}/hippunfold}"
 HIPPUNFOLD_WORK="${HIPPUNFOLD_WORK:-${PROJECT_DIR}/scratch/hippunfold_work}"
+HIPPUNFOLD_CACHE_DIR="${HIPPUNFOLD_CACHE_DIR:-${PROJECT_DIR}/cache/hippunfold}"
 HIPPUNFOLD_PARTICIPANT_LABELS="${HIPPUNFOLD_PARTICIPANT_LABELS:-}"
 HIPPUNFOLD_MODALITY="${HIPPUNFOLD_MODALITY:-T1w}"
 HIPPUNFOLD_CORES="${HIPPUNFOLD_CORES:-${NTHREADS:-all}}"
@@ -31,7 +32,7 @@ if [[ -n "${HIPPUNFOLD_SINGLE_SUBJECT:-}" ]]; then
   HIPPUNFOLD_WORK="${HIPPUNFOLD_WORK}/${HIPPUNFOLD_SINGLE_SUBJECT#sub-}"
 fi
 
-required_vars=(BIDS_DIR DERIVATIVES_DIR LOG_DIR HIPPUNFOLD_OUT HIPPUNFOLD_WORK HIPPUNFOLD_IMAGE CONTAINER_RUNTIME HIPPUNFOLD_MODALITY HIPPUNFOLD_CORES)
+required_vars=(BIDS_DIR DERIVATIVES_DIR LOG_DIR HIPPUNFOLD_OUT HIPPUNFOLD_WORK HIPPUNFOLD_CACHE_DIR HIPPUNFOLD_IMAGE CONTAINER_RUNTIME HIPPUNFOLD_MODALITY HIPPUNFOLD_CORES)
 for var_name in "${required_vars[@]}"; do
   if [[ -z "${!var_name:-}" ]]; then
     echo "ERROR: $var_name is not set in $CONFIG_ENV" >&2
@@ -48,7 +49,7 @@ if [[ ! -f "$HIPPUNFOLD_IMAGE" ]]; then
   exit 2
 fi
 
-mkdir -p "$HIPPUNFOLD_OUT" "$HIPPUNFOLD_WORK" "$LOG_DIR"
+mkdir -p "$HIPPUNFOLD_OUT" "$HIPPUNFOLD_WORK" "$HIPPUNFOLD_CACHE_DIR" "$LOG_DIR"
 
 hippunfold_args=(/data /out participant --modality "$HIPPUNFOLD_MODALITY" --cores "$HIPPUNFOLD_CORES")
 if [[ -n "$HIPPUNFOLD_PARTICIPANT_LABELS" ]]; then
@@ -86,6 +87,7 @@ run_log="${LOG_DIR}/hippunfold_run_${log_label}_${array_label}_${timestamp}.log"
   echo "CONFIG_ENV=$CONFIG_ENV"
   echo "HIPPUNFOLD_IMAGE=$HIPPUNFOLD_IMAGE"
   echo "CONTAINER_RUNTIME=$CONTAINER_RUNTIME"
+  echo "HIPPUNFOLD_CACHE_DIR=$HIPPUNFOLD_CACHE_DIR"
   echo "HIPPUNFOLD_PARTICIPANT_LABELS=$HIPPUNFOLD_PARTICIPANT_LABELS"
   echo "HIPPUNFOLD_MODALITY=$HIPPUNFOLD_MODALITY"
   echo "HIPPUNFOLD_CORES=$HIPPUNFOLD_CORES"
@@ -101,6 +103,8 @@ case "$CONTAINER_RUNTIME" in
       -v "${BIDS_DIR}:/data:ro" \
       -v "${HIPPUNFOLD_OUT}:/out" \
       -v "${HIPPUNFOLD_WORK}:/work" \
+      -v "${HIPPUNFOLD_CACHE_DIR}:/hippunfold_cache" \
+      -e HIPPUNFOLD_CACHE_DIR=/hippunfold_cache \
       "$HIPPUNFOLD_IMAGE" \
       hippunfold \
       "${hippunfold_args[@]}" 2>&1 | tee "$run_log"
@@ -111,6 +115,8 @@ case "$CONTAINER_RUNTIME" in
       -B "${BIDS_DIR}:/data:ro" \
       -B "${HIPPUNFOLD_OUT}:/out" \
       -B "${HIPPUNFOLD_WORK}:/work" \
+      -B "${HIPPUNFOLD_CACHE_DIR}:/hippunfold_cache" \
+      --env HIPPUNFOLD_CACHE_DIR=/hippunfold_cache \
       "$HIPPUNFOLD_IMAGE" \
       "$HIPPUNFOLD_CONTAINER_ENTRYPOINT" \
       "${hippunfold_args[@]}" 2>&1 | tee "$run_log"
@@ -121,6 +127,8 @@ case "$CONTAINER_RUNTIME" in
       -B "${BIDS_DIR}:/data:ro" \
       -B "${HIPPUNFOLD_OUT}:/out" \
       -B "${HIPPUNFOLD_WORK}:/work" \
+      -B "${HIPPUNFOLD_CACHE_DIR}:/hippunfold_cache" \
+      --env HIPPUNFOLD_CACHE_DIR=/hippunfold_cache \
       "$HIPPUNFOLD_IMAGE" \
       "$HIPPUNFOLD_CONTAINER_ENTRYPOINT" \
       "${hippunfold_args[@]}" 2>&1 | tee "$run_log"

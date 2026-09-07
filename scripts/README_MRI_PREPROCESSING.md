@@ -23,7 +23,8 @@ The plan remains the scientific specification; these scripts are operational hel
 - `scripts/submit_first_array_hyak.sh`: submits one FIRST array task per completed fMRIPrep subject.
 - `scripts/run_msmall.sh`: runs the separate MSMAll branch wrapper for eligible subjects using a project-specific driver.
 - `scripts/submit_msmall_array_hyak.sh`: submits one MSMAll array task per completed fMRIPrep subject.
-- `scripts/msmall_driver_template.sh`: documents the required MSMAll driver interface and fails until replaced.
+- `scripts/msmall_driver.sh`: runs HCP Pipelines MSMAll inside the container.
+- `scripts/README_MSMALL_PIPELINE.md`: gives the full HCP structural, HCP functional/FIX, and MSMAll run order.
 - `scripts/submit_preproduction_pilot_hyak.sbatch`: submits the full pre-production pilot wrapper as a Hyak SLURM job.
 - `scripts/check_fmriprep_outputs.py`: checks that expected canonical derivatives exist after a run.
 - `scripts/freeze_release_manifest.py`: writes a provenance JSON manifest with logs, config, command records, environment details, and checksums.
@@ -98,9 +99,13 @@ Apptainer, the executable is installed at
 `/src/.pixi/envs/default/bin/hippunfold`; this is captured by
 `HIPPUNFOLD_CONTAINER_ENTRYPOINT` and used by `scripts/run_hippunfold.sh`.
 
-HippUnfold containers from v1.3.0 onward may download model files on demand.
-Before offline or restricted compute runs, prepare a shared
-`HIPPUNFOLD_CACHE_DIR` if your pilot run needs those models.
+HippUnfold containers from v1.3.0 onward download model files on demand.
+Before offline or restricted compute runs, populate the shared
+`HIPPUNFOLD_CACHE_DIR` from an internet-enabled login/data-transfer context:
+
+```bash
+scripts/prefetch_hippunfold_models_hyak.sh config/mri_preproc.env
+```
 
 Populate the project TemplateFlow cache before submitting fMRIPrep on compute
 nodes. No TemplateFlow customization is needed; the scripts use
@@ -160,11 +165,10 @@ The HippUnfold branch reads raw BIDS and writes `${DERIVATIVES_DIR}/hippunfold`.
 Set `HIPPUNFOLD_MODALITY` in `config/mri_preproc.env` to the image type used
 for segmentation, usually `T1w` for the raw anatomical branch.
 The FIRST branch reads completed fMRIPrep anatomical outputs and writes
-`${DERIVATIVES_DIR}/first`. The MSMAll wrapper reads raw BIDS, fMRIPrep, and
-FreeSurfer outputs, but it intentionally requires `MSMALL_DRIVER_SCRIPT` to
-point to an executable project-specific HCP/MSMAll bridge. The included
-`scripts/msmall_driver_template.sh` documents the driver interface and exits
-with an error until a validated bridge is supplied.
+`${DERIVATIVES_DIR}/first`. The MSMAll branch is a three-stage HCP workflow:
+HCP structural preprocessing, HCP functional/FIX preprocessing, then MSMAll.
+Use `scripts/README_MSMALL_PIPELINE.md` for the full run order and required
+preflight checks.
 
 To change the number of subjects running at the same time, edit:
 

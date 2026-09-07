@@ -31,7 +31,7 @@ fi
 
 # shellcheck source=/dev/null
 source "$CONFIG_ENV"
-mkdir -p logs/slurm "$LOG_DIR" "${HIPPUNFOLD_OUT:-${DERIVATIVES_DIR}/hippunfold}" "${HIPPUNFOLD_WORK:-${PROJECT_DIR}/scratch/hippunfold_work}"
+mkdir -p logs/slurm "$LOG_DIR" "${HIPPUNFOLD_OUT:-${DERIVATIVES_DIR}/hippunfold}" "${HIPPUNFOLD_WORK:-${PROJECT_DIR}/scratch/hippunfold_work}" "${HIPPUNFOLD_CACHE_DIR:-${PROJECT_DIR}/cache/hippunfold}"
 
 if [[ -n "$SUBJECT_LIST" ]]; then
   if [[ -z "${SLURM_ARRAY_TASK_ID:-}" ]]; then
@@ -48,6 +48,8 @@ fi
 
 export OMP_NUM_THREADS="${OMP_NTHREADS:-1}"
 export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS="${OMP_NTHREADS:-1}"
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}"
+export LD_PRELOAD="${LD_PRELOAD:-}"
 
 if command -v module >/dev/null 2>&1; then
   module purge || true

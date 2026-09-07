@@ -2,7 +2,9 @@
 
 This repository contains the operational scripts for the R01 MRI preprocessing workflow. The preprocessing is designed to run on Hyak with SLURM and Apptainer/Singularity.
 
-The scientific specification is maintained separately in the ignored `plans/` folder. The scripts in this repository implement the canonical fMRIPrep production workflow and supporting pre-production checks.
+The scientific specification is maintained separately in the ignored `plans/` folder. The scripts in this repository implement the canonical fMRIPrep production workflow, supporting pre-production checks, and separate derivative branches.
+
+For the HCP MSMAll derivative branch, see `scripts/README_MSMALL_PIPELINE.md`.
 
 ## Repository Layout
 
@@ -23,6 +25,7 @@ R01/
 │   ├── audit_sdc_metadata.py
 │   ├── check_fmriprep_outputs.py
 │   ├── freeze_release_manifest.py
+│   ├── README_MSMALL_PIPELINE.md
 │   └── README_MRI_PREPROCESSING.md
 └── README.md
 ```
