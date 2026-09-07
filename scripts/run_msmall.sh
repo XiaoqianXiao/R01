@@ -46,8 +46,14 @@ if [[ ! -f "$MSMALL_IMAGE" ]]; then
   echo "ERROR: MSMALL_IMAGE does not exist: $MSMALL_IMAGE" >&2
   exit 2
 fi
+if [[ ! -e "$MSMALL_DRIVER_SCRIPT" ]]; then
+  echo "ERROR: MSMALL_DRIVER_SCRIPT does not exist: $MSMALL_DRIVER_SCRIPT" >&2
+  echo "Set MSMALL_DRIVER_SCRIPT to an executable project-specific HCP/MSMAll bridge." >&2
+  echo "Use scripts/msmall_driver_template.sh as the interface template." >&2
+  exit 2
+fi
 if [[ ! -x "$MSMALL_DRIVER_SCRIPT" ]]; then
-  echo "ERROR: MSMALL_DRIVER_SCRIPT is not executable: $MSMALL_DRIVER_SCRIPT" >&2
+  echo "ERROR: MSMALL_DRIVER_SCRIPT exists but is not executable: $MSMALL_DRIVER_SCRIPT" >&2
   echo "Use scripts/msmall_driver_template.sh as the interface template." >&2
   exit 2
 fi
