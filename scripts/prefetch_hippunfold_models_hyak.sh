@@ -25,10 +25,8 @@ HIPPUNFOLD_OUT="${HIPPUNFOLD_OUT:-${DERIVATIVES_DIR}/hippunfold}"
 HIPPUNFOLD_WORK="${HIPPUNFOLD_WORK:-${PROJECT_DIR}/scratch/hippunfold_work}"
 HIPPUNFOLD_CACHE_DIR="${HIPPUNFOLD_CACHE_DIR:-${PROJECT_DIR}/cache/hippunfold}"
 HIPPUNFOLD_MODALITY="${HIPPUNFOLD_MODALITY:-T1w}"
-HIPPUNFOLD_CORES="${HIPPUNFOLD_CORES:-1}"
-HIPPUNFOLD_CONTAINER_ENTRYPOINT="${HIPPUNFOLD_CONTAINER_ENTRYPOINT:-/src/.pixi/envs/default/bin/hippunfold}"
 
-required_vars=(BIDS_DIR DERIVATIVES_DIR HIPPUNFOLD_IMAGE CONTAINER_RUNTIME HIPPUNFOLD_OUT HIPPUNFOLD_WORK HIPPUNFOLD_CACHE_DIR HIPPUNFOLD_MODALITY)
+required_vars=(DERIVATIVES_DIR HIPPUNFOLD_OUT HIPPUNFOLD_WORK HIPPUNFOLD_CACHE_DIR HIPPUNFOLD_MODALITY)
 for var_name in "${required_vars[@]}"; do
   if [[ -z "${!var_name:-}" ]]; then
     echo "ERROR: $var_name is not set in $CONFIG_ENV" >&2
@@ -36,67 +34,70 @@ for var_name in "${required_vars[@]}"; do
   fi
 done
 
-if [[ ! -d "$BIDS_DIR" ]]; then
-  echo "ERROR: BIDS_DIR does not exist: $BIDS_DIR" >&2
-  exit 2
-fi
-if [[ ! -f "$HIPPUNFOLD_IMAGE" ]]; then
-  echo "ERROR: HIPPUNFOLD_IMAGE does not exist: $HIPPUNFOLD_IMAGE" >&2
-  exit 2
-fi
+hippunfold_model_file() {
+  case "$1" in
+    T1w) echo "trained_model.3d_fullres.Task101_hcp1200_T1w.nnUNetTrainerV2.model_best.tar" ;;
+    T2w) echo "trained_model.3d_fullres.Task102_hcp1200_T2w.nnUNetTrainerV2.model_best.tar" ;;
+    b1000|b1000crop) echo "trained_model.3d_fullres.Task110_hcp1200_b1000crop.nnUNetTrainerV2.model_best.tar" ;;
+    *) echo "" ;;
+  esac
+}
 
-runtime="${CONTAINER_RUNTIME:-apptainer}"
-if [[ "$runtime" == "docker" ]]; then
-  runtime="apptainer"
-fi
+hippunfold_model_url() {
+  case "$1" in
+    T1w) echo "https://zenodo.org/record/4508747/files/trained_model.3d_fullres.Task101_hcp1200_T1w.nnUNetTrainerV2.model_best.tar" ;;
+    T2w) echo "https://zenodo.org/record/4508747/files/trained_model.3d_fullres.Task102_hcp1200_T2w.nnUNetTrainerV2.model_best.tar" ;;
+    b1000|b1000crop) echo "https://zenodo.org/record/5732291/files/trained_model.3d_fullres.Task110_hcp1200_b1000crop.nnUNetTrainerV2.model_best.tar" ;;
+    *) echo "" ;;
+  esac
+}
 
-export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}"
-export LD_PRELOAD="${LD_PRELOAD:-}"
-
-if command -v module >/dev/null 2>&1; then
-  module load apptainer >/dev/null 2>&1 || module load singularity >/dev/null 2>&1 || true
-fi
-
-if ! command -v "$runtime" >/dev/null 2>&1; then
-  if command -v apptainer >/dev/null 2>&1; then
-    runtime="apptainer"
-  elif command -v singularity >/dev/null 2>&1; then
-    runtime="singularity"
-  else
-    echo "ERROR: Apptainer/Singularity is not available." >&2
-    exit 127
-  fi
-fi
-
-mkdir -p "$HIPPUNFOLD_OUT" "$HIPPUNFOLD_WORK" "$HIPPUNFOLD_CACHE_DIR"
+mkdir -p "$HIPPUNFOLD_OUT" "$HIPPUNFOLD_WORK" "${HIPPUNFOLD_CACHE_DIR}/model"
 snakebids_marker="${HIPPUNFOLD_OUT}/.snakebids"
 tmp_marker="${snakebids_marker}.tmp.$$"
 printf '%s\n' '{"mode":"bidsapp"}' > "$tmp_marker"
 mv "$tmp_marker" "$snakebids_marker"
 
-no_mount_args=()
-if [[ -n "${APPTAINER_NO_MOUNT:-bind-paths}" ]]; then
-  no_mount_args=(--no-mount "${APPTAINER_NO_MOUNT:-bind-paths}")
-fi
-
-export APPTAINER_BINDPATH=""
-export SINGULARITY_BINDPATH=""
-
 echo "HippUnfold model cache: $HIPPUNFOLD_CACHE_DIR"
 echo "Prefetching modality: $HIPPUNFOLD_MODALITY"
+required_model="${HIPPUNFOLD_REQUIRED_MODEL:-$(hippunfold_model_file "$HIPPUNFOLD_MODALITY")}"
+model_url="$(hippunfold_model_url "$HIPPUNFOLD_MODALITY")"
+if [[ -z "$required_model" || -z "$model_url" ]]; then
+  echo "ERROR: no built-in model URL is configured for HIPPUNFOLD_MODALITY=$HIPPUNFOLD_MODALITY" >&2
+  echo "Set HIPPUNFOLD_REQUIRED_MODEL and download/extract it under ${HIPPUNFOLD_CACHE_DIR}/model." >&2
+  exit 2
+fi
 
-"$runtime" exec --cleanenv \
-  "${no_mount_args[@]}" \
-  -B "${BIDS_DIR}:/data:ro" \
-  -B "${HIPPUNFOLD_OUT}:/out" \
-  -B "${HIPPUNFOLD_WORK}:/work" \
-  -B "${HIPPUNFOLD_CACHE_DIR}:/hippunfold_cache" \
-  --env HIPPUNFOLD_CACHE_DIR=/hippunfold_cache \
-  "$HIPPUNFOLD_IMAGE" \
-  "$HIPPUNFOLD_CONTAINER_ENTRYPOINT" \
-  /data /out participant \
-  --modality "$HIPPUNFOLD_MODALITY" \
-  --cores "$HIPPUNFOLD_CORES" \
-  --until download_model
+model_tar="${HIPPUNFOLD_CACHE_DIR}/model/${required_model}"
+model_dir="${model_tar%.tar}"
+legacy_model_tar="${HIPPUNFOLD_CACHE_DIR}/${required_model}"
+if [[ ! -f "$model_tar" && -f "$legacy_model_tar" ]]; then
+  mv "$legacy_model_tar" "$model_tar"
+fi
+
+if [[ ! -f "$model_tar" ]]; then
+  tmp_model="${model_tar}.tmp.$$"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fL "$model_url" -o "$tmp_model"
+  elif command -v wget >/dev/null 2>&1; then
+    wget "$model_url" -O "$tmp_model"
+  else
+    echo "ERROR: neither curl nor wget is available for model download." >&2
+    exit 127
+  fi
+  mv "$tmp_model" "$model_tar"
+fi
+
+if [[ ! -s "$model_tar" ]]; then
+  echo "ERROR: downloaded model is missing or empty: $model_tar" >&2
+  exit 2
+fi
+
+if [[ ! -d "$model_dir" ]]; then
+  mkdir -p "$model_dir"
+  tar -xf "$model_tar" -C "$model_dir"
+fi
 
 echo "HippUnfold model cache is ready: $HIPPUNFOLD_CACHE_DIR"
+echo "Model tar: $model_tar"
+echo "Model directory: $model_dir"

@@ -16,7 +16,35 @@ fi
 # shellcheck source=/dev/null
 source "$CONFIG_ENV"
 HIPPUNFOLD_OUT="${HIPPUNFOLD_OUT:-${DERIVATIVES_DIR}/hippunfold}"
-mkdir -p logs/slurm "$LOG_DIR" "$HIPPUNFOLD_OUT"
+HIPPUNFOLD_CACHE_DIR="${HIPPUNFOLD_CACHE_DIR:-${PROJECT_DIR}/cache/hippunfold}"
+HIPPUNFOLD_MODALITY="${HIPPUNFOLD_MODALITY:-T1w}"
+HIPPUNFOLD_REQUIRE_CACHED_MODEL="${HIPPUNFOLD_REQUIRE_CACHED_MODEL:-1}"
+mkdir -p logs/slurm "$LOG_DIR" "$HIPPUNFOLD_OUT" "${HIPPUNFOLD_CACHE_DIR}/model"
+
+hippunfold_model_file() {
+  case "$1" in
+    T1w) echo "trained_model.3d_fullres.Task101_hcp1200_T1w.nnUNetTrainerV2.model_best.tar" ;;
+    T2w) echo "trained_model.3d_fullres.Task102_hcp1200_T2w.nnUNetTrainerV2.model_best.tar" ;;
+    b1000|b1000crop) echo "trained_model.3d_fullres.Task110_hcp1200_b1000crop.nnUNetTrainerV2.model_best.tar" ;;
+    *) echo "" ;;
+  esac
+}
+
+required_model="${HIPPUNFOLD_REQUIRED_MODEL:-$(hippunfold_model_file "$HIPPUNFOLD_MODALITY")}"
+required_model_tar="${HIPPUNFOLD_CACHE_DIR}/model/${required_model}"
+if [[ "$HIPPUNFOLD_REQUIRE_CACHED_MODEL" == "1" && -n "$required_model" && ! -f "$required_model_tar" ]]; then
+  cat >&2 <<MSG
+ERROR: HippUnfold model is not cached: $required_model_tar
+
+Run this from an internet-enabled Hyak login or data-transfer context before
+submitting the array:
+
+  scripts/prefetch_hippunfold_models_hyak.sh ${CONFIG_ENV}
+
+Set HIPPUNFOLD_REQUIRE_CACHED_MODEL=0 only for a deliberate online test.
+MSG
+  exit 2
+fi
 
 snakebids_marker="${HIPPUNFOLD_OUT}/.snakebids"
 tmp_marker="${snakebids_marker}.tmp.$$"

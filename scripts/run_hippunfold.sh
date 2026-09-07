@@ -27,6 +27,7 @@ HIPPUNFOLD_PARTICIPANT_LABELS="${HIPPUNFOLD_PARTICIPANT_LABELS:-}"
 HIPPUNFOLD_MODALITY="${HIPPUNFOLD_MODALITY:-T1w}"
 HIPPUNFOLD_CORES="${HIPPUNFOLD_CORES:-${NTHREADS:-all}}"
 HIPPUNFOLD_CONTAINER_ENTRYPOINT="${HIPPUNFOLD_CONTAINER_ENTRYPOINT:-/src/.pixi/envs/default/bin/hippunfold}"
+HIPPUNFOLD_REQUIRE_CACHED_MODEL="${HIPPUNFOLD_REQUIRE_CACHED_MODEL:-1}"
 if [[ -n "${HIPPUNFOLD_SINGLE_SUBJECT:-}" ]]; then
   HIPPUNFOLD_PARTICIPANT_LABELS="$HIPPUNFOLD_SINGLE_SUBJECT"
   HIPPUNFOLD_WORK="${HIPPUNFOLD_WORK}/${HIPPUNFOLD_SINGLE_SUBJECT#sub-}"
@@ -49,7 +50,33 @@ if [[ ! -f "$HIPPUNFOLD_IMAGE" ]]; then
   exit 2
 fi
 
+hippunfold_model_file() {
+  case "$1" in
+    T1w) echo "trained_model.3d_fullres.Task101_hcp1200_T1w.nnUNetTrainerV2.model_best.tar" ;;
+    T2w) echo "trained_model.3d_fullres.Task102_hcp1200_T2w.nnUNetTrainerV2.model_best.tar" ;;
+    b1000|b1000crop) echo "trained_model.3d_fullres.Task110_hcp1200_b1000crop.nnUNetTrainerV2.model_best.tar" ;;
+    *) echo "" ;;
+  esac
+}
+
 mkdir -p "$HIPPUNFOLD_OUT" "$HIPPUNFOLD_WORK" "$HIPPUNFOLD_CACHE_DIR" "$LOG_DIR"
+
+required_model="${HIPPUNFOLD_REQUIRED_MODEL:-$(hippunfold_model_file "$HIPPUNFOLD_MODALITY")}"
+required_model_tar="${HIPPUNFOLD_CACHE_DIR}/model/${required_model}"
+if [[ "$HIPPUNFOLD_REQUIRE_CACHED_MODEL" == "1" && -n "$required_model" && ! -f "$required_model_tar" ]]; then
+  cat >&2 <<MSG
+ERROR: HippUnfold model is not cached: $required_model_tar
+
+Compute nodes may not have internet/DNS access, so HippUnfold cannot download
+models during array jobs. Run this from an internet-enabled Hyak login or
+data-transfer context before resubmitting:
+
+  scripts/prefetch_hippunfold_models_hyak.sh ${CONFIG_ENV}
+
+Set HIPPUNFOLD_REQUIRE_CACHED_MODEL=0 only for a deliberate online test.
+MSG
+  exit 2
+fi
 
 snakebids_marker="${HIPPUNFOLD_WORK}/.snakebids"
 if [[ ! -s "$snakebids_marker" ]]; then
@@ -115,6 +142,7 @@ run_log="${LOG_DIR}/hippunfold_run_${log_label}_${array_label}_${timestamp}.log"
   echo "HIPPUNFOLD_PARTICIPANT_LABELS=$HIPPUNFOLD_PARTICIPANT_LABELS"
   echo "HIPPUNFOLD_MODALITY=$HIPPUNFOLD_MODALITY"
   echo "HIPPUNFOLD_CORES=$HIPPUNFOLD_CORES"
+  echo "HIPPUNFOLD_REQUIRED_MODEL=$required_model"
   echo "HIPPUNFOLD_CONTAINER_ENTRYPOINT=$HIPPUNFOLD_CONTAINER_ENTRYPOINT"
   printf 'hippunfold args:'
   printf ' %q' "${hippunfold_args[@]}"

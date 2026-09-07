@@ -101,11 +101,19 @@ Apptainer, the executable is installed at
 
 HippUnfold containers from v1.3.0 onward download model files on demand.
 Before offline or restricted compute runs, populate the shared
-`HIPPUNFOLD_CACHE_DIR` from an internet-enabled login/data-transfer context:
+`HIPPUNFOLD_CACHE_DIR` from an internet-enabled login/data-transfer context.
+The helper downloads the required nnU-Net tarball into
+`${HIPPUNFOLD_CACHE_DIR}/model` and unpacks it so compute nodes do not need to
+resolve Zenodo during Snakemake DAG construction:
 
 ```bash
 scripts/prefetch_hippunfold_models_hyak.sh config/mri_preproc.env
 ```
+
+Array submission requires the model to already exist in `HIPPUNFOLD_CACHE_DIR`
+by default. This prevents compute-node jobs from failing during DAG construction
+when they cannot resolve `zenodo.org`. Set `HIPPUNFOLD_REQUIRE_CACHED_MODEL=0`
+only for a deliberate online test.
 
 Populate the project TemplateFlow cache before submitting fMRIPrep on compute
 nodes. No TemplateFlow customization is needed; the scripts use
