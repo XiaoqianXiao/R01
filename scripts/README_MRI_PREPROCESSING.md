@@ -9,6 +9,7 @@ The plan remains the scientific specification; these scripts are operational hel
 - `scripts/run_bids_validator.sh`: runs BIDS validation and saves a log.
 - `scripts/download_templateflow_cache.sh`: downloads and packages the TemplateFlow cache on a machine with internet access.
 - `scripts/prefetch_templateflow_hyak.sh`: populates the TemplateFlow cache before offline Hyak fMRIPrep jobs.
+- `scripts/build_hcp_pipelines.sbatch`: builds the HCP Pipelines 5.0.0 `.sif` used by the MSMAll branch.
 - `scripts/run_python_hyak.sh`: runs Python helper scripts inside `/gscratch/fang/images/jupyter.sif`.
 - `scripts/make_multisession_manifest.py`: records each subject/session and whether anat, func, and fmap files are present.
 - `scripts/audit_sdc_metadata.py`: audits AP/PA fieldmap JSON metadata, `B0FieldIdentifier` / `B0FieldSource` mappings, `IntendedFor`, readout metadata, and optional fieldmap geometry.
@@ -60,6 +61,21 @@ If the fMRIPrep Apptainer image has not been built yet, submit the existing imag
 
 ```bash
 sbatch scripts/build_fmriprep.sbatch
+```
+
+If the HCP Pipelines 5.0.0 Apptainer image for MSMAll has not been built yet,
+submit:
+
+```bash
+sbatch scripts/build_hcp_pipelines.sbatch
+```
+
+The build script writes `/gscratch/fang/images/hcp-pipelines-5.0.0.sif`,
+matching `MSMALL_IMAGE` in `config/mri_preproc.env`. To use a lab-approved or
+registered QuNex source image instead of the public fallback, submit with:
+
+```bash
+HCP_PIPELINES_SOURCE=docker://YOUR_IMAGE:TAG sbatch scripts/build_hcp_pipelines.sbatch
 ```
 
 Populate the project TemplateFlow cache before submitting fMRIPrep on compute
