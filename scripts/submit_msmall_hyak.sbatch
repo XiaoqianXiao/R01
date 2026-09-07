@@ -12,6 +12,7 @@
 
 set -euo pipefail
 export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}"
+export LD_PRELOAD="${LD_PRELOAD:-}"
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || $# -lt 1 || $# -gt 2 ]]; then
   echo "Usage: sbatch [SLURM_OPTIONS] scripts/submit_msmall_hyak.sbatch CONFIG_ENV [SUBJECT_LIST]"

@@ -93,6 +93,11 @@ frozen source image, submit with:
 HIPPUNFOLD_SOURCE=docker://YOUR_IMAGE:TAG sbatch scripts/build_hippunfold.sbatch
 ```
 
+For the official `khanlab/hippunfold:dev-v2.0.0` image converted with
+Apptainer, the executable is installed at
+`/src/.pixi/envs/default/bin/hippunfold`; this is captured by
+`HIPPUNFOLD_CONTAINER_ENTRYPOINT` and used by `scripts/run_hippunfold.sh`.
+
 HippUnfold containers from v1.3.0 onward may download model files on demand.
 Before offline or restricted compute runs, prepare a shared
 `HIPPUNFOLD_CACHE_DIR` if your pilot run needs those models.

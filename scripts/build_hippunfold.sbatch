@@ -29,6 +29,7 @@ CONTAINER="${CONTAINER_DIR}/hippunfold-${HIPPUNFOLD_VERSION}.sif"
 #
 #   HIPPUNFOLD_SOURCE=docker://YOUR_IMAGE:TAG sbatch scripts/build_hippunfold.sbatch
 HIPPUNFOLD_SOURCE="${HIPPUNFOLD_SOURCE:-docker://khanlab/hippunfold:dev-v2.0.0}"
+HIPPUNFOLD_CONTAINER_ENTRYPOINT="${HIPPUNFOLD_CONTAINER_ENTRYPOINT:-/src/.pixi/envs/default/bin/hippunfold}"
 
 mkdir -p "${CONTAINER_DIR}"
 
@@ -79,12 +80,12 @@ apptainer pull \
 echo
 echo "Checking HippUnfold version/help..."
 
-if ! apptainer run "${CONTAINER}" --help >/dev/null; then
-    echo "ERROR: HippUnfold container runscript failed." >&2
+if ! apptainer exec "${CONTAINER}" "${HIPPUNFOLD_CONTAINER_ENTRYPOINT}" --help >/dev/null; then
+    echo "ERROR: HippUnfold container executable failed: ${HIPPUNFOLD_CONTAINER_ENTRYPOINT}" >&2
     echo "Inspecting common executable locations inside the container..." >&2
     apptainer exec "${CONTAINER}" bash -lc \
-        'set +e; command -v hippunfold; python -m pip show hippunfold; find /usr /opt /src -maxdepth 6 \( -name hippunfold -o -name "hippunfold*" \) -print 2>/dev/null | head -n 80' >&2
-    echo "If this still reports no hippunfold executable, the source image is broken or incomplete; retry with HIPPUNFOLD_SOURCE set to a lab-approved image." >&2
+        'set +e; command -v hippunfold; python3 -m pip show hippunfold; find /usr /opt /src -maxdepth 6 \( -name hippunfold -o -name "hippunfold*" \) -print 2>/dev/null | head -n 80' >&2
+    echo "If this still cannot run HippUnfold, set HIPPUNFOLD_CONTAINER_ENTRYPOINT to the executable path reported above or retry with HIPPUNFOLD_SOURCE set to a lab-approved image." >&2
     exit 1
 fi
 

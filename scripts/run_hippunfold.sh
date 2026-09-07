@@ -25,6 +25,7 @@ HIPPUNFOLD_WORK="${HIPPUNFOLD_WORK:-${PROJECT_DIR}/scratch/hippunfold_work}"
 HIPPUNFOLD_PARTICIPANT_LABELS="${HIPPUNFOLD_PARTICIPANT_LABELS:-}"
 HIPPUNFOLD_MODALITY="${HIPPUNFOLD_MODALITY:-T1w}"
 HIPPUNFOLD_CORES="${HIPPUNFOLD_CORES:-${NTHREADS:-all}}"
+HIPPUNFOLD_CONTAINER_ENTRYPOINT="${HIPPUNFOLD_CONTAINER_ENTRYPOINT:-/src/.pixi/envs/default/bin/hippunfold}"
 if [[ -n "${HIPPUNFOLD_SINGLE_SUBJECT:-}" ]]; then
   HIPPUNFOLD_PARTICIPANT_LABELS="$HIPPUNFOLD_SINGLE_SUBJECT"
   HIPPUNFOLD_WORK="${HIPPUNFOLD_WORK}/${HIPPUNFOLD_SINGLE_SUBJECT#sub-}"
@@ -88,6 +89,7 @@ run_log="${LOG_DIR}/hippunfold_run_${log_label}_${array_label}_${timestamp}.log"
   echo "HIPPUNFOLD_PARTICIPANT_LABELS=$HIPPUNFOLD_PARTICIPANT_LABELS"
   echo "HIPPUNFOLD_MODALITY=$HIPPUNFOLD_MODALITY"
   echo "HIPPUNFOLD_CORES=$HIPPUNFOLD_CORES"
+  echo "HIPPUNFOLD_CONTAINER_ENTRYPOINT=$HIPPUNFOLD_CONTAINER_ENTRYPOINT"
   printf 'hippunfold args:'
   printf ' %q' "${hippunfold_args[@]}"
   echo
@@ -110,7 +112,7 @@ case "$CONTAINER_RUNTIME" in
       -B "${HIPPUNFOLD_OUT}:/out" \
       -B "${HIPPUNFOLD_WORK}:/work" \
       "$HIPPUNFOLD_IMAGE" \
-      hippunfold \
+      "$HIPPUNFOLD_CONTAINER_ENTRYPOINT" \
       "${hippunfold_args[@]}" 2>&1 | tee "$run_log"
     ;;
   singularity)
@@ -120,7 +122,7 @@ case "$CONTAINER_RUNTIME" in
       -B "${HIPPUNFOLD_OUT}:/out" \
       -B "${HIPPUNFOLD_WORK}:/work" \
       "$HIPPUNFOLD_IMAGE" \
-      hippunfold \
+      "$HIPPUNFOLD_CONTAINER_ENTRYPOINT" \
       "${hippunfold_args[@]}" 2>&1 | tee "$run_log"
     ;;
   *)
