@@ -66,6 +66,7 @@ echo "Output: ${CONTAINER}"
 echo "============================================================"
 
 apptainer pull \
+    --disable-cache \
     --force \
     "${CONTAINER}" \
     "${HIPPUNFOLD_SOURCE}"
@@ -78,9 +79,14 @@ apptainer pull \
 echo
 echo "Checking HippUnfold version/help..."
 
-apptainer exec \
-    "${CONTAINER}" \
-    hippunfold --help >/dev/null
+if ! apptainer run "${CONTAINER}" --help >/dev/null; then
+    echo "ERROR: HippUnfold container runscript failed." >&2
+    echo "Inspecting common executable locations inside the container..." >&2
+    apptainer exec "${CONTAINER}" bash -lc \
+        'set +e; command -v hippunfold; python -m pip show hippunfold; find /usr /opt /src -maxdepth 6 \( -name hippunfold -o -name "hippunfold*" \) -print 2>/dev/null | head -n 80' >&2
+    echo "If this still reports no hippunfold executable, the source image is broken or incomplete; retry with HIPPUNFOLD_SOURCE set to a lab-approved image." >&2
+    exit 1
+fi
 
 
 # ============================================================
