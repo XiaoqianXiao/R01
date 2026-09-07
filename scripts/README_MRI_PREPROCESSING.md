@@ -10,6 +10,7 @@ The plan remains the scientific specification; these scripts are operational hel
 - `scripts/download_templateflow_cache.sh`: downloads and packages the TemplateFlow cache on a machine with internet access.
 - `scripts/prefetch_templateflow_hyak.sh`: populates the TemplateFlow cache before offline Hyak fMRIPrep jobs.
 - `scripts/build_hcp_pipelines.sbatch`: builds the HCP Pipelines 5.0.0 `.sif` used by the MSMAll branch.
+- `scripts/build_hippunfold.sbatch`: builds the HippUnfold 2.0.0 `.sif` used by the HippUnfold branch.
 - `scripts/run_python_hyak.sh`: runs Python helper scripts inside `/gscratch/fang/images/jupyter.sif`.
 - `scripts/make_multisession_manifest.py`: records each subject/session and whether anat, func, and fmap files are present.
 - `scripts/audit_sdc_metadata.py`: audits AP/PA fieldmap JSON metadata, `B0FieldIdentifier` / `B0FieldSource` mappings, `IntendedFor`, readout metadata, and optional fieldmap geometry.
@@ -77,6 +78,24 @@ registered QuNex source image instead of the public fallback, submit with:
 ```bash
 HCP_PIPELINES_SOURCE=docker://YOUR_IMAGE:TAG sbatch scripts/build_hcp_pipelines.sbatch
 ```
+
+If the HippUnfold 2.0.0 Apptainer image has not been built yet, submit:
+
+```bash
+sbatch scripts/build_hippunfold.sbatch
+```
+
+The build script writes `/gscratch/fang/images/hippunfold-2.0.0.sif`,
+matching `HIPPUNFOLD_IMAGE` in `config/mri_preproc.env`. To use a different
+frozen source image, submit with:
+
+```bash
+HIPPUNFOLD_SOURCE=docker://YOUR_IMAGE:TAG sbatch scripts/build_hippunfold.sbatch
+```
+
+HippUnfold containers from v1.3.0 onward may download model files on demand.
+Before offline or restricted compute runs, prepare a shared
+`HIPPUNFOLD_CACHE_DIR` if your pilot run needs those models.
 
 Populate the project TemplateFlow cache before submitting fMRIPrep on compute
 nodes. No TemplateFlow customization is needed; the scripts use
