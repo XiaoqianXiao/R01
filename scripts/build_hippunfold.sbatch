@@ -80,7 +80,7 @@ echo "Checking HippUnfold version/help..."
 
 apptainer exec \
     "${CONTAINER}" \
-    bash -lc 'set -e; if command -v hippunfold >/dev/null 2>&1; then hippunfold --version || hippunfold -h | head -n 40; else echo "ERROR: hippunfold command not found on PATH" >&2; exit 1; fi'
+    hippunfold --help >/dev/null
 
 
 # ============================================================

@@ -152,6 +152,8 @@ scripts/submit_msmall_array_hyak.sh config/mri_preproc.env
 ```
 
 The HippUnfold branch reads raw BIDS and writes `${DERIVATIVES_DIR}/hippunfold`.
+Set `HIPPUNFOLD_MODALITY` in `config/mri_preproc.env` to the image type used
+for segmentation, usually `T1w` for the raw anatomical branch.
 The FIRST branch reads completed fMRIPrep anatomical outputs and writes
 `${DERIVATIVES_DIR}/first`. The MSMAll wrapper reads raw BIDS, fMRIPrep, and
 FreeSurfer outputs, but it intentionally requires `MSMALL_DRIVER_SCRIPT` to

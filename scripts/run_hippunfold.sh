@@ -23,12 +23,14 @@ source "$CONFIG_ENV"
 HIPPUNFOLD_OUT="${HIPPUNFOLD_OUT:-${DERIVATIVES_DIR}/hippunfold}"
 HIPPUNFOLD_WORK="${HIPPUNFOLD_WORK:-${PROJECT_DIR}/scratch/hippunfold_work}"
 HIPPUNFOLD_PARTICIPANT_LABELS="${HIPPUNFOLD_PARTICIPANT_LABELS:-}"
+HIPPUNFOLD_MODALITY="${HIPPUNFOLD_MODALITY:-T1w}"
+HIPPUNFOLD_CORES="${HIPPUNFOLD_CORES:-${NTHREADS:-all}}"
 if [[ -n "${HIPPUNFOLD_SINGLE_SUBJECT:-}" ]]; then
   HIPPUNFOLD_PARTICIPANT_LABELS="$HIPPUNFOLD_SINGLE_SUBJECT"
   HIPPUNFOLD_WORK="${HIPPUNFOLD_WORK}/${HIPPUNFOLD_SINGLE_SUBJECT#sub-}"
 fi
 
-required_vars=(BIDS_DIR DERIVATIVES_DIR LOG_DIR HIPPUNFOLD_OUT HIPPUNFOLD_WORK HIPPUNFOLD_IMAGE CONTAINER_RUNTIME)
+required_vars=(BIDS_DIR DERIVATIVES_DIR LOG_DIR HIPPUNFOLD_OUT HIPPUNFOLD_WORK HIPPUNFOLD_IMAGE CONTAINER_RUNTIME HIPPUNFOLD_MODALITY HIPPUNFOLD_CORES)
 for var_name in "${required_vars[@]}"; do
   if [[ -z "${!var_name:-}" ]]; then
     echo "ERROR: $var_name is not set in $CONFIG_ENV" >&2
@@ -47,7 +49,7 @@ fi
 
 mkdir -p "$HIPPUNFOLD_OUT" "$HIPPUNFOLD_WORK" "$LOG_DIR"
 
-hippunfold_args=(/data /out participant)
+hippunfold_args=(/data /out participant --modality "$HIPPUNFOLD_MODALITY" --cores "$HIPPUNFOLD_CORES")
 if [[ -n "$HIPPUNFOLD_PARTICIPANT_LABELS" ]]; then
   hippunfold_args+=(--participant-label)
   # shellcheck disable=SC2206
@@ -84,6 +86,8 @@ run_log="${LOG_DIR}/hippunfold_run_${log_label}_${array_label}_${timestamp}.log"
   echo "HIPPUNFOLD_IMAGE=$HIPPUNFOLD_IMAGE"
   echo "CONTAINER_RUNTIME=$CONTAINER_RUNTIME"
   echo "HIPPUNFOLD_PARTICIPANT_LABELS=$HIPPUNFOLD_PARTICIPANT_LABELS"
+  echo "HIPPUNFOLD_MODALITY=$HIPPUNFOLD_MODALITY"
+  echo "HIPPUNFOLD_CORES=$HIPPUNFOLD_CORES"
   printf 'hippunfold args:'
   printf ' %q' "${hippunfold_args[@]}"
   echo
@@ -96,24 +100,27 @@ case "$CONTAINER_RUNTIME" in
       -v "${HIPPUNFOLD_OUT}:/out" \
       -v "${HIPPUNFOLD_WORK}:/work" \
       "$HIPPUNFOLD_IMAGE" \
+      hippunfold \
       "${hippunfold_args[@]}" 2>&1 | tee "$run_log"
     ;;
   apptainer)
-    apptainer run --cleanenv \
+    apptainer exec --cleanenv \
       "${apptainer_no_mount_args[@]}" \
       -B "${BIDS_DIR}:/data:ro" \
       -B "${HIPPUNFOLD_OUT}:/out" \
       -B "${HIPPUNFOLD_WORK}:/work" \
       "$HIPPUNFOLD_IMAGE" \
+      hippunfold \
       "${hippunfold_args[@]}" 2>&1 | tee "$run_log"
     ;;
   singularity)
-    singularity run --cleanenv \
+    singularity exec --cleanenv \
       "${apptainer_no_mount_args[@]}" \
       -B "${BIDS_DIR}:/data:ro" \
       -B "${HIPPUNFOLD_OUT}:/out" \
       -B "${HIPPUNFOLD_WORK}:/work" \
       "$HIPPUNFOLD_IMAGE" \
+      hippunfold \
       "${hippunfold_args[@]}" 2>&1 | tee "$run_log"
     ;;
   *)
