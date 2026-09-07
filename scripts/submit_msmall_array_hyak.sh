@@ -17,6 +17,18 @@ fi
 source "$CONFIG_ENV"
 mkdir -p logs/slurm "$LOG_DIR"
 
+if [[ -z "${MSMALL_HCP_STUDY_FOLDER:-}" && "${MSMALL_ALLOW_WITHOUT_HCP:-0}" != "1" ]]; then
+  cat >&2 <<'MSG'
+ERROR: MSMAll submission requires HCP-style inputs.
+
+MSMALL_HCP_STUDY_FOLDER is empty. MSMAll cannot be generated directly from
+fMRIPrep outputs; it requires HCP Minimal Preprocessing/FIX outputs with
+SUBJECT/MNINonLinear inputs. Set MSMALL_HCP_STUDY_FOLDER after those inputs
+exist, or set MSMALL_ALLOW_WITHOUT_HCP=1 only for a deliberate dry/preflight run.
+MSG
+  exit 2
+fi
+
 timestamp="$(date +%Y%m%d_%H%M%S)"
 subject_list="${LOG_DIR}/msmall_subjects_${timestamp}.txt"
 

@@ -70,6 +70,12 @@ need_path() {
   [[ -e "$path" ]] || die "$label does not exist: $path"
 }
 
+read_manifest_value() {
+  local key="$1"
+  local file="$2"
+  sed -n "s/^${key}=//p" "$file" | tail -n 1
+}
+
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   usage
   exit 0
@@ -202,6 +208,28 @@ need_path "HCP subject MNINonLinear folder" "${HCP_STUDY_FOLDER}/${HCP_SESSION}/
 need_path "HCP subject native myelin map" "${HCP_STUDY_FOLDER}/${HCP_SESSION}/MNINonLinear/Native/${HCP_SESSION}.MyelinMap.native.dscalar.nii"
 need_path "MSMAll templates" "$MSMALL_TEMPLATES"
 need_path "MSMAll myelin target" "$MYELIN_TARGET_FILE"
+
+functional_manifest="${HCP_STUDY_FOLDER}/${HCP_SESSION}/MNINonLinear/Results/hcp_functional_msmall_inputs.txt"
+if [[ -f "$functional_manifest" ]]; then
+  if [[ -z "$MRFIX_NAMES" ]]; then
+    MRFIX_NAMES="$(read_manifest_value HCP_FMRI_NAMES "$functional_manifest")"
+  fi
+  if [[ -z "$MRFIX_NAMES_TO_USE" ]]; then
+    MRFIX_NAMES_TO_USE="$MRFIX_NAMES"
+  fi
+  if [[ "$MRFIX_CONCAT_NAME" == "fMRI_CONCAT" ]]; then
+    manifest_concat="$(read_manifest_value HCP_FMRI_CONCAT_NAME "$functional_manifest")"
+    MRFIX_CONCAT_NAME="${manifest_concat:-$MRFIX_CONCAT_NAME}"
+  fi
+  if [[ "$OUTPUT_FMRI_NAME" == "rfMRI_REST_CONCAT" ]]; then
+    manifest_output="$(read_manifest_value HCP_FMRI_OUTPUT_NAME "$functional_manifest")"
+    OUTPUT_FMRI_NAME="${manifest_output:-$OUTPUT_FMRI_NAME}"
+  fi
+  if [[ "$HIGH_PASS" == "0" ]]; then
+    manifest_high_pass="$(read_manifest_value HCP_FMRI_HIGH_PASS "$functional_manifest")"
+    HIGH_PASS="${manifest_high_pass:-$HIGH_PASS}"
+  fi
+fi
 
 if [[ -z "$FMRINAMES" ]]; then
   [[ -n "$MRFIX_NAMES" ]] || die "set --multirun-fix-names when --fmri-names-list is empty"
