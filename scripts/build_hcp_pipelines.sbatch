@@ -10,6 +10,7 @@
 
 set -euo pipefail
 export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}"
+export LD_PRELOAD="${LD_PRELOAD:-}"
 
 
 # ============================================================
