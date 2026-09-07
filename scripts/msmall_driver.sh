@@ -166,7 +166,10 @@ fi
 if [[ -z "${HCPPIPEDIR:-}" ]]; then
   for candidate in \
     /pipeline_tools/HCPpipelines \
+    /pipeline_tools/HCPpipelines-5.0.0 \
+    /opt/HCP-Pipelines \
     /opt/HCPpipelines \
+    /opt/HCPpipelines-5.0.0 \
     /usr/local/HCPpipelines \
     /HCPpipelines; do
     if [[ -x "${candidate}/MSMAll/MSMAllPipeline.sh" ]]; then
@@ -174,6 +177,14 @@ if [[ -z "${HCPPIPEDIR:-}" ]]; then
       break
     fi
   done
+fi
+if [[ -z "${HCPPIPEDIR:-}" ]]; then
+  msmall_pipeline="$(
+    find / -path '*/MSMAll/MSMAllPipeline.sh' -type f -executable -print -quit 2>/dev/null || true
+  )"
+  if [[ -n "$msmall_pipeline" ]]; then
+    export HCPPIPEDIR="$(dirname "$(dirname "$msmall_pipeline")")"
+  fi
 fi
 [[ -n "${HCPPIPEDIR:-}" ]] || die "HCPPIPEDIR is not set and could not be discovered in the container"
 [[ -x "${HCPPIPEDIR}/MSMAll/MSMAllPipeline.sh" ]] || die "MSMAllPipeline.sh is not executable under HCPPIPEDIR: $HCPPIPEDIR"
