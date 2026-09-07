@@ -15,6 +15,13 @@ The plan remains the scientific specification; these scripts are operational hel
 - `scripts/run_fmriprep.sh`: runs the canonical fMRIPrep 25.2.5 workflow with `func`, `T1w`, `MNI152NLin2009cAsym:res-native`, `fsnative`, CIFTI 91k, MSMSulc, explicit session tracking, and `--slice-time-ref 0.5`.
 - `scripts/submit_fmriprep_array_hyak.sh`: generates a subject list from `BIDS_DIR` and submits one SLURM array task per subject.
 - `scripts/submit_fmriprep_hyak.sbatch`: submits the canonical fMRIPrep worker as a Hyak SLURM job.
+- `scripts/run_hippunfold.sh`: runs the separate HippUnfold derivative branch.
+- `scripts/submit_hippunfold_array_hyak.sh`: submits one HippUnfold array task per BIDS subject.
+- `scripts/run_first.sh`: runs the separate FSL FIRST derivative branch from fMRIPrep T1w anatomical outputs.
+- `scripts/submit_first_array_hyak.sh`: submits one FIRST array task per completed fMRIPrep subject.
+- `scripts/run_msmall.sh`: runs the separate MSMAll branch wrapper for eligible subjects using a project-specific driver.
+- `scripts/submit_msmall_array_hyak.sh`: submits one MSMAll array task per completed fMRIPrep subject.
+- `scripts/msmall_driver_template.sh`: documents the required MSMAll driver interface and fails until replaced.
 - `scripts/submit_preproduction_pilot_hyak.sbatch`: submits the full pre-production pilot wrapper as a Hyak SLURM job.
 - `scripts/check_fmriprep_outputs.py`: checks that expected canonical derivatives exist after a run.
 - `scripts/freeze_release_manifest.py`: writes a provenance JSON manifest with logs, config, command records, environment details, and checksums.
@@ -100,6 +107,23 @@ one SLURM array task = one BIDS subject
 
 For this multi-session project, do not split production into one array task per session. Each subject task keeps all intended sessions visible to fMRIPrep, uses `--subject-anatomical-reference unbiased`, and explicitly uses `--track-sessions`. This preserves a common within-subject anatomical reference while keeping functional outputs session- and run-specific.
 
+Submit the specialized derivative branches only after their branch-specific
+pilot/QC decisions are frozen:
+
+```bash
+scripts/submit_hippunfold_array_hyak.sh config/mri_preproc.env
+scripts/submit_first_array_hyak.sh config/mri_preproc.env
+scripts/submit_msmall_array_hyak.sh config/mri_preproc.env
+```
+
+The HippUnfold branch reads raw BIDS and writes `${DERIVATIVES_DIR}/hippunfold`.
+The FIRST branch reads completed fMRIPrep anatomical outputs and writes
+`${DERIVATIVES_DIR}/first`. The MSMAll wrapper reads raw BIDS, fMRIPrep, and
+FreeSurfer outputs, but it intentionally requires `MSMALL_DRIVER_SCRIPT` to
+point to an executable project-specific HCP/MSMAll bridge. The included
+`scripts/msmall_driver_template.sh` documents the driver interface and exits
+with an error until a validated bridge is supplied.
+
 To change the number of subjects running at the same time, edit:
 
 ```bash
@@ -142,4 +166,4 @@ Before cohort-wide production, freeze and archive:
 - output check report
 - release manifest
 
-The scripts intentionally do not run denoising, atlas extraction, FC, graph analysis, task GLM, MVPA, HippUnfold, FIRST, or MSMAll production. Those are separate derivative branches in the plan and need their own frozen configurations.
+The canonical fMRIPrep scripts intentionally do not run denoising, atlas extraction, FC, graph analysis, task GLM, MVPA, HippUnfold, FIRST, or MSMAll production. Those are separate derivative branches in the plan and need their own frozen configurations. The branch wrappers above provide operational entry points for HippUnfold, FIRST, and MSMAll, but each branch still requires project-specific pilot acceptance before cohort-wide production.
