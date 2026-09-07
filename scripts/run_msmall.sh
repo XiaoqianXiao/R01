@@ -123,6 +123,18 @@ run_one_subject() {
   mkdir -p "$subject_out" "$subject_work"
 
   local driver_args=("$subject" /data /fmriprep /freesurfer "/out/${subject}" /work)
+  local hcp_bind_args=()
+  if [[ -n "${MSMALL_HCP_STUDY_FOLDER:-}" ]]; then
+    if [[ ! -d "$MSMALL_HCP_STUDY_FOLDER" ]]; then
+      echo "ERROR: MSMALL_HCP_STUDY_FOLDER does not exist: $MSMALL_HCP_STUDY_FOLDER" >&2
+      return 2
+    fi
+    driver_args+=(--hcp-source-folder /hcp_input --hcp-study-folder /work/hcp)
+    case "$CONTAINER_RUNTIME" in
+      docker) hcp_bind_args=(-v "${MSMALL_HCP_STUDY_FOLDER}:/hcp_input:ro") ;;
+      apptainer|singularity) hcp_bind_args=(-B "${MSMALL_HCP_STUDY_FOLDER}:/hcp_input:ro") ;;
+    esac
+  fi
   if [[ -n "${EXTRA_MSMALL_ARGS:-}" ]]; then
     # shellcheck disable=SC2206
     extra_args=($EXTRA_MSMALL_ARGS)
@@ -143,6 +155,7 @@ run_one_subject() {
         -v "${subject_out}:/out/${subject}" \
         -v "${subject_work}:/work" \
         -v "${MSMALL_DRIVER_SCRIPT}:/driver.sh:ro" \
+        "${hcp_bind_args[@]}" \
         "$MSMALL_IMAGE" \
         /driver.sh "${driver_args[@]}"
       ;;
@@ -155,6 +168,7 @@ run_one_subject() {
         -B "${subject_out}:/out/${subject}" \
         -B "${subject_work}:/work" \
         -B "${MSMALL_DRIVER_SCRIPT}:/driver.sh:ro" \
+        "${hcp_bind_args[@]}" \
         "$MSMALL_IMAGE" \
         /driver.sh "${driver_args[@]}"
       ;;
@@ -167,6 +181,7 @@ run_one_subject() {
         -B "${subject_out}:/out/${subject}" \
         -B "${subject_work}:/work" \
         -B "${MSMALL_DRIVER_SCRIPT}:/driver.sh:ro" \
+        "${hcp_bind_args[@]}" \
         "$MSMALL_IMAGE" \
         /driver.sh "${driver_args[@]}"
       ;;
