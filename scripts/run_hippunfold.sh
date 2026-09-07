@@ -51,6 +51,29 @@ fi
 
 mkdir -p "$HIPPUNFOLD_OUT" "$HIPPUNFOLD_WORK" "$HIPPUNFOLD_CACHE_DIR" "$LOG_DIR"
 
+snakebids_marker="${HIPPUNFOLD_WORK}/.snakebids"
+if [[ ! -s "$snakebids_marker" ]]; then
+  tmp_marker="${snakebids_marker}.tmp.$$"
+  printf '%s\n' '{"mode":"bidsapp"}' > "$tmp_marker"
+  mv "$tmp_marker" "$snakebids_marker"
+fi
+if ! python3 - "$snakebids_marker" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+marker = Path(sys.argv[1])
+try:
+    data = json.loads(marker.read_text())
+except json.JSONDecodeError as exc:
+    raise SystemExit(f"ERROR: invalid Snakebids marker {marker}: {exc}")
+if data.get("mode") != "bidsapp":
+    raise SystemExit(f"ERROR: unexpected Snakebids marker mode in {marker}: {data!r}")
+PY
+then
+  exit 2
+fi
+
 hippunfold_args=(/data /out participant --modality "$HIPPUNFOLD_MODALITY" --cores "$HIPPUNFOLD_CORES")
 if [[ -n "$HIPPUNFOLD_PARTICIPANT_LABELS" ]]; then
   hippunfold_args+=(--participant-label)
@@ -88,6 +111,7 @@ run_log="${LOG_DIR}/hippunfold_run_${log_label}_${array_label}_${timestamp}.log"
   echo "HIPPUNFOLD_IMAGE=$HIPPUNFOLD_IMAGE"
   echo "CONTAINER_RUNTIME=$CONTAINER_RUNTIME"
   echo "HIPPUNFOLD_CACHE_DIR=$HIPPUNFOLD_CACHE_DIR"
+  echo "SNAKEBIDS_MARKER=$snakebids_marker"
   echo "HIPPUNFOLD_PARTICIPANT_LABELS=$HIPPUNFOLD_PARTICIPANT_LABELS"
   echo "HIPPUNFOLD_MODALITY=$HIPPUNFOLD_MODALITY"
   echo "HIPPUNFOLD_CORES=$HIPPUNFOLD_CORES"
@@ -104,6 +128,7 @@ case "$CONTAINER_RUNTIME" in
       -v "${HIPPUNFOLD_OUT}:/out" \
       -v "${HIPPUNFOLD_WORK}:/work" \
       -v "${HIPPUNFOLD_CACHE_DIR}:/hippunfold_cache" \
+      -v "${snakebids_marker}:/out/.snakebids" \
       -e HIPPUNFOLD_CACHE_DIR=/hippunfold_cache \
       "$HIPPUNFOLD_IMAGE" \
       hippunfold \
@@ -116,6 +141,7 @@ case "$CONTAINER_RUNTIME" in
       -B "${HIPPUNFOLD_OUT}:/out" \
       -B "${HIPPUNFOLD_WORK}:/work" \
       -B "${HIPPUNFOLD_CACHE_DIR}:/hippunfold_cache" \
+      -B "${snakebids_marker}:/out/.snakebids" \
       --env HIPPUNFOLD_CACHE_DIR=/hippunfold_cache \
       "$HIPPUNFOLD_IMAGE" \
       "$HIPPUNFOLD_CONTAINER_ENTRYPOINT" \
@@ -128,6 +154,7 @@ case "$CONTAINER_RUNTIME" in
       -B "${HIPPUNFOLD_OUT}:/out" \
       -B "${HIPPUNFOLD_WORK}:/work" \
       -B "${HIPPUNFOLD_CACHE_DIR}:/hippunfold_cache" \
+      -B "${snakebids_marker}:/out/.snakebids" \
       --env HIPPUNFOLD_CACHE_DIR=/hippunfold_cache \
       "$HIPPUNFOLD_IMAGE" \
       "$HIPPUNFOLD_CONTAINER_ENTRYPOINT" \

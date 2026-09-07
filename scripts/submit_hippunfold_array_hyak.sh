@@ -15,7 +15,13 @@ fi
 
 # shellcheck source=/dev/null
 source "$CONFIG_ENV"
-mkdir -p logs/slurm "$LOG_DIR"
+HIPPUNFOLD_OUT="${HIPPUNFOLD_OUT:-${DERIVATIVES_DIR}/hippunfold}"
+mkdir -p logs/slurm "$LOG_DIR" "$HIPPUNFOLD_OUT"
+
+snakebids_marker="${HIPPUNFOLD_OUT}/.snakebids"
+tmp_marker="${snakebids_marker}.tmp.$$"
+printf '%s\n' '{"mode":"bidsapp"}' > "$tmp_marker"
+mv "$tmp_marker" "$snakebids_marker"
 
 timestamp="$(date +%Y%m%d_%H%M%S)"
 subject_list="${LOG_DIR}/hippunfold_subjects_${timestamp}.txt"

@@ -69,6 +69,10 @@ if ! command -v "$runtime" >/dev/null 2>&1; then
 fi
 
 mkdir -p "$HIPPUNFOLD_OUT" "$HIPPUNFOLD_WORK" "$HIPPUNFOLD_CACHE_DIR"
+snakebids_marker="${HIPPUNFOLD_OUT}/.snakebids"
+tmp_marker="${snakebids_marker}.tmp.$$"
+printf '%s\n' '{"mode":"bidsapp"}' > "$tmp_marker"
+mv "$tmp_marker" "$snakebids_marker"
 
 no_mount_args=()
 if [[ -n "${APPTAINER_NO_MOUNT:-bind-paths}" ]]; then

@@ -164,6 +164,9 @@ scripts/submit_msmall_array_hyak.sh config/mri_preproc.env
 The HippUnfold branch reads raw BIDS and writes `${DERIVATIVES_DIR}/hippunfold`.
 Set `HIPPUNFOLD_MODALITY` in `config/mri_preproc.env` to the image type used
 for segmentation, usually `T1w` for the raw anatomical branch.
+Each array task binds a private `${HIPPUNFOLD_WORK}/SUBJECT/.snakebids` over
+`/out/.snakebids`, avoiding races in Snakebids' non-atomic output-mode marker
+when many participants start at once.
 The FIRST branch reads completed fMRIPrep anatomical outputs and writes
 `${DERIVATIVES_DIR}/first`. The MSMAll branch is a three-stage HCP workflow:
 HCP structural preprocessing, HCP functional/FIX preprocessing, then MSMAll.

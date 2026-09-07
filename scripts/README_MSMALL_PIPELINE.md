@@ -85,11 +85,14 @@ Submit the structural preprocessing array:
 scripts/submit_hcp_structural_array_hyak.sh config/mri_preproc.env
 ```
 
-This submits one SLURM array task per BIDS subject found under:
+This submits one SLURM array task per eligible BIDS subject found under:
 
 ```bash
 ${BIDS_DIR}/sub-*
 ```
+
+When `HCP_REQUIRE_T2_FOR_MSMALL="1"`, subjects without a T2w image are skipped
+before submission. The skipped-subject list is written to `LOG_DIR`.
 
 Each worker runs:
 
@@ -168,6 +171,10 @@ Each worker runs:
 ```bash
 scripts/run_msmall.sh config/mri_preproc.env
 ```
+
+The submitter includes only subjects with `MNINonLinear`, a native myelin map,
+the functional MSMAll manifest, and the expected multi-run FIX outputs. Subjects
+missing those inputs are written to a skipped-subject list in `LOG_DIR`.
 
 `run_msmall.sh` binds `MSMALL_HCP_STUDY_FOLDER` read-only as `/hcp_input`.
 For each subject, the driver stages the subject into `/work/hcp` and runs:
@@ -331,6 +338,9 @@ Do not set `MSMALL_ALLOW_WITHOUT_HCP=1` for production.
 
 The structural stage needs T2w images to create myelin maps for MSMAll. Keep
 `HCP_REQUIRE_T2_FOR_MSMALL="1"` and check the raw BIDS anatomical files.
+For cohort arrays, subjects without T2w images are skipped by
+`submit_hcp_structural_array_hyak.sh`; this error mainly appears in older jobs
+or direct manual runs.
 
 ### `TOPUP requested but no ... SE-EPI found`
 

@@ -32,6 +32,12 @@ fi
 # shellcheck source=/dev/null
 source "$CONFIG_ENV"
 mkdir -p logs/slurm "$LOG_DIR" "${HIPPUNFOLD_OUT:-${DERIVATIVES_DIR}/hippunfold}" "${HIPPUNFOLD_WORK:-${PROJECT_DIR}/scratch/hippunfold_work}" "${HIPPUNFOLD_CACHE_DIR:-${PROJECT_DIR}/cache/hippunfold}"
+snakebids_marker="${HIPPUNFOLD_OUT:-${DERIVATIVES_DIR}/hippunfold}/.snakebids"
+if [[ ! -s "$snakebids_marker" ]]; then
+  tmp_marker="${snakebids_marker}.tmp.$$"
+  printf '%s\n' '{"mode":"bidsapp"}' > "$tmp_marker"
+  mv "$tmp_marker" "$snakebids_marker"
+fi
 
 if [[ -n "$SUBJECT_LIST" ]]; then
   if [[ -z "${SLURM_ARRAY_TASK_ID:-}" ]]; then
