@@ -96,9 +96,11 @@ HIPPUNFOLD_SOURCE=docker://YOUR_IMAGE:TAG sbatch scripts/build_hippunfold.sbatch
 ```
 
 For the official `khanlab/hippunfold:dev-v2.0.0` image converted with
-Apptainer, the executable is installed at
-`/src/.pixi/envs/default/bin/hippunfold`; this is captured by
-`HIPPUNFOLD_CONTAINER_ENTRYPOINT` and used by `scripts/run_hippunfold.sh`.
+Apptainer, run through `/app/entrypoint.sh` with
+`HIPPUNFOLD_CONTAINER_COMMAND=hippunfold`. The entrypoint initializes the
+container's pixi/conda environment before launching HippUnfold. Passing
+`hippunfold` explicitly also prevents Apptainer from handing `/data` to the
+entrypoint as the command.
 
 HippUnfold containers from v1.3.0 onward download model files on demand.
 Before offline or restricted compute runs, populate the shared
@@ -191,9 +193,10 @@ for segmentation, usually `T1w` for the raw anatomical branch.
 Run `scripts/prefetch_hippunfold_models_hyak.sh config/mri_preproc.env` and
 wait for the download and extraction to complete before calling
 `scripts/submit_hippunfold_array_hyak.sh`.
-Each array task binds a private `${HIPPUNFOLD_WORK}/SUBJECT/.snakebids` over
-`/out/.snakebids`, avoiding races in Snakebids' non-atomic output-mode marker
-when many participants start at once.
+Each array task binds private `${HIPPUNFOLD_WORK}/SUBJECT/.snakebids` and
+`${HIPPUNFOLD_WORK}/SUBJECT/.snakemake` paths over `/out/.snakebids` and
+`/out/.snakemake`. This avoids races in Snakebids' non-atomic output-mode
+marker and Snakemake's lock metadata when many participants start at once.
 The FIRST branch reads completed fMRIPrep anatomical outputs and writes
 `${DERIVATIVES_DIR}/first`. The MSMAll branch is a three-stage HCP workflow:
 HCP structural preprocessing, HCP functional/FIX preprocessing, then MSMAll.

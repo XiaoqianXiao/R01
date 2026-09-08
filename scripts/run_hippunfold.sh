@@ -29,7 +29,8 @@ HIPPUNFOLD_TEMPLATE="${HIPPUNFOLD_TEMPLATE:-CITI168}"
 HIPPUNFOLD_INJECT_TEMPLATE="${HIPPUNFOLD_INJECT_TEMPLATE:-upenn}"
 HIPPUNFOLD_BUILTIN_ATLAS="${HIPPUNFOLD_BUILTIN_ATLAS:-multihist7}"
 HIPPUNFOLD_CORES="${HIPPUNFOLD_CORES:-${NTHREADS:-all}}"
-HIPPUNFOLD_CONTAINER_ENTRYPOINT="${HIPPUNFOLD_CONTAINER_ENTRYPOINT:-/src/.pixi/envs/default/bin/hippunfold}"
+HIPPUNFOLD_CONTAINER_ENTRYPOINT="${HIPPUNFOLD_CONTAINER_ENTRYPOINT:-/app/entrypoint.sh}"
+HIPPUNFOLD_CONTAINER_COMMAND="${HIPPUNFOLD_CONTAINER_COMMAND:-hippunfold}"
 HIPPUNFOLD_REQUIRE_CACHED_MODEL="${HIPPUNFOLD_REQUIRE_CACHED_MODEL:-1}"
 HIPPUNFOLD_REQUIRE_CACHED_RESOURCES="${HIPPUNFOLD_REQUIRE_CACHED_RESOURCES:-1}"
 if [[ -n "${HIPPUNFOLD_SINGLE_SUBJECT:-}" ]]; then
@@ -37,7 +38,7 @@ if [[ -n "${HIPPUNFOLD_SINGLE_SUBJECT:-}" ]]; then
   HIPPUNFOLD_WORK="${HIPPUNFOLD_WORK}/${HIPPUNFOLD_SINGLE_SUBJECT#sub-}"
 fi
 
-required_vars=(BIDS_DIR DERIVATIVES_DIR LOG_DIR HIPPUNFOLD_OUT HIPPUNFOLD_WORK HIPPUNFOLD_CACHE_DIR HIPPUNFOLD_IMAGE CONTAINER_RUNTIME HIPPUNFOLD_MODALITY HIPPUNFOLD_TEMPLATE HIPPUNFOLD_INJECT_TEMPLATE HIPPUNFOLD_BUILTIN_ATLAS HIPPUNFOLD_CORES)
+required_vars=(BIDS_DIR DERIVATIVES_DIR LOG_DIR HIPPUNFOLD_OUT HIPPUNFOLD_WORK HIPPUNFOLD_CACHE_DIR HIPPUNFOLD_IMAGE CONTAINER_RUNTIME HIPPUNFOLD_MODALITY HIPPUNFOLD_TEMPLATE HIPPUNFOLD_INJECT_TEMPLATE HIPPUNFOLD_BUILTIN_ATLAS HIPPUNFOLD_CORES HIPPUNFOLD_CONTAINER_ENTRYPOINT HIPPUNFOLD_CONTAINER_COMMAND)
 for var_name in "${required_vars[@]}"; do
   if [[ -z "${!var_name:-}" ]]; then
     echo "ERROR: $var_name is not set in $CONFIG_ENV" >&2
@@ -63,7 +64,7 @@ hippunfold_model_file() {
   esac
 }
 
-mkdir -p "$HIPPUNFOLD_OUT" "$HIPPUNFOLD_WORK" "$HIPPUNFOLD_CACHE_DIR" "$LOG_DIR"
+mkdir -p "$HIPPUNFOLD_OUT" "$HIPPUNFOLD_WORK" "$HIPPUNFOLD_CACHE_DIR" "$LOG_DIR" "${HIPPUNFOLD_OUT}/.snakemake"
 
 required_model="${HIPPUNFOLD_REQUIRED_MODEL:-$(hippunfold_model_file "$HIPPUNFOLD_MODALITY")}"
 required_model_tar="${HIPPUNFOLD_CACHE_DIR}/model/${required_model}"
@@ -103,6 +104,8 @@ MSG
 fi
 
 snakebids_marker="${HIPPUNFOLD_WORK}/.snakebids"
+snakemake_metadata="${HIPPUNFOLD_WORK}/.snakemake"
+mkdir -p "${snakemake_metadata}/locks"
 if [[ ! -s "$snakebids_marker" ]]; then
   tmp_marker="${snakebids_marker}.tmp.$$"
   printf '%s\n' '{"mode":"bidsapp"}' > "$tmp_marker"
@@ -163,6 +166,7 @@ run_log="${LOG_DIR}/hippunfold_run_${log_label}_${array_label}_${timestamp}.log"
   echo "CONTAINER_RUNTIME=$CONTAINER_RUNTIME"
   echo "HIPPUNFOLD_CACHE_DIR=$HIPPUNFOLD_CACHE_DIR"
   echo "SNAKEBIDS_MARKER=$snakebids_marker"
+  echo "SNAKEMAKE_METADATA=$snakemake_metadata"
   echo "HIPPUNFOLD_PARTICIPANT_LABELS=$HIPPUNFOLD_PARTICIPANT_LABELS"
   echo "HIPPUNFOLD_MODALITY=$HIPPUNFOLD_MODALITY"
   echo "HIPPUNFOLD_TEMPLATE=$HIPPUNFOLD_TEMPLATE"
@@ -171,6 +175,7 @@ run_log="${LOG_DIR}/hippunfold_run_${log_label}_${array_label}_${timestamp}.log"
   echo "HIPPUNFOLD_CORES=$HIPPUNFOLD_CORES"
   echo "HIPPUNFOLD_REQUIRED_MODEL=$required_model"
   echo "HIPPUNFOLD_CONTAINER_ENTRYPOINT=$HIPPUNFOLD_CONTAINER_ENTRYPOINT"
+  echo "HIPPUNFOLD_CONTAINER_COMMAND=$HIPPUNFOLD_CONTAINER_COMMAND"
   printf 'hippunfold args:'
   printf ' %q' "${hippunfold_args[@]}"
   echo
@@ -184,9 +189,10 @@ case "$CONTAINER_RUNTIME" in
       -v "${HIPPUNFOLD_WORK}:/work" \
       -v "${HIPPUNFOLD_CACHE_DIR}:/hippunfold_cache" \
       -v "${snakebids_marker}:/out/.snakebids" \
+      -v "${snakemake_metadata}:/out/.snakemake" \
       -e HIPPUNFOLD_CACHE_DIR=/hippunfold_cache \
       "$HIPPUNFOLD_IMAGE" \
-      hippunfold \
+      "$HIPPUNFOLD_CONTAINER_COMMAND" \
       "${hippunfold_args[@]}" 2>&1 | tee "$run_log"
     ;;
   apptainer)
@@ -197,9 +203,11 @@ case "$CONTAINER_RUNTIME" in
       -B "${HIPPUNFOLD_WORK}:/work" \
       -B "${HIPPUNFOLD_CACHE_DIR}:/hippunfold_cache" \
       -B "${snakebids_marker}:/out/.snakebids" \
+      -B "${snakemake_metadata}:/out/.snakemake" \
       --env HIPPUNFOLD_CACHE_DIR=/hippunfold_cache \
       "$HIPPUNFOLD_IMAGE" \
       "$HIPPUNFOLD_CONTAINER_ENTRYPOINT" \
+      "$HIPPUNFOLD_CONTAINER_COMMAND" \
       "${hippunfold_args[@]}" 2>&1 | tee "$run_log"
     ;;
   singularity)
@@ -210,9 +218,11 @@ case "$CONTAINER_RUNTIME" in
       -B "${HIPPUNFOLD_WORK}:/work" \
       -B "${HIPPUNFOLD_CACHE_DIR}:/hippunfold_cache" \
       -B "${snakebids_marker}:/out/.snakebids" \
+      -B "${snakemake_metadata}:/out/.snakemake" \
       --env HIPPUNFOLD_CACHE_DIR=/hippunfold_cache \
       "$HIPPUNFOLD_IMAGE" \
       "$HIPPUNFOLD_CONTAINER_ENTRYPOINT" \
+      "$HIPPUNFOLD_CONTAINER_COMMAND" \
       "${hippunfold_args[@]}" 2>&1 | tee "$run_log"
     ;;
   *)
