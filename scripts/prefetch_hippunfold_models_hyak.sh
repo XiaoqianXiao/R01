@@ -93,6 +93,7 @@ download_zip_dir() {
   local url="$1"
   local out_dir="$2"
   if [[ -d "$out_dir" && -n "$(find "$out_dir" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]]; then
+    touch "${out_dir}/.snakemake_timestamp"
     echo "Resource already exists: $out_dir"
     return
   fi
@@ -101,9 +102,23 @@ download_zip_dir() {
   download_file "$url" "$zip_file"
   unzip -q "$zip_file" -d "$out_dir"
   rm -f "$zip_file"
+  touch "${out_dir}/.snakemake_timestamp"
 }
 
-mkdir -p "$HIPPUNFOLD_OUT" "$HIPPUNFOLD_WORK" "${HIPPUNFOLD_CACHE_DIR}/model" "${HIPPUNFOLD_CACHE_DIR}/atlases_dl" "${HIPPUNFOLD_CACHE_DIR}/template"
+copy_resource_dir() {
+  local src_dir="$1"
+  local dst_dir="$2"
+  if [[ -d "$dst_dir" && -n "$(find "$dst_dir" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]]; then
+    touch "${dst_dir}/.snakemake_timestamp"
+    echo "Resource already exists: $dst_dir"
+    return
+  fi
+  mkdir -p "$dst_dir"
+  cp -a "${src_dir}/." "$dst_dir/"
+  touch "${dst_dir}/.snakemake_timestamp"
+}
+
+mkdir -p "$HIPPUNFOLD_OUT" "$HIPPUNFOLD_WORK" "${HIPPUNFOLD_CACHE_DIR}/model" "${HIPPUNFOLD_CACHE_DIR}/atlas" "${HIPPUNFOLD_CACHE_DIR}/atlases" "${HIPPUNFOLD_CACHE_DIR}/atlases_dl" "${HIPPUNFOLD_CACHE_DIR}/template"
 snakebids_marker="${HIPPUNFOLD_OUT}/.snakebids"
 tmp_marker="${snakebids_marker}.tmp.$$"
 printf '%s\n' '{"mode":"bidsapp"}' > "$tmp_marker"
@@ -139,6 +154,7 @@ if [[ ! -d "$model_dir" ]]; then
   mkdir -p "$model_dir"
   tar -xf "$model_tar" -C "$model_dir"
 fi
+touch "${model_dir}/.snakemake_timestamp"
 
 atlas_url="$(hippunfold_atlas_url "$HIPPUNFOLD_BUILTIN_ATLAS")"
 if [[ -z "$atlas_url" ]]; then
@@ -147,6 +163,10 @@ if [[ -z "$atlas_url" ]]; then
 fi
 atlas_dir="${HIPPUNFOLD_CACHE_DIR}/atlases_dl/tpl-${HIPPUNFOLD_BUILTIN_ATLAS}"
 download_zip_dir "$atlas_url" "$atlas_dir"
+atlas_cache_dir="${HIPPUNFOLD_CACHE_DIR}/atlas/${HIPPUNFOLD_BUILTIN_ATLAS}"
+atlases_cache_dir="${HIPPUNFOLD_CACHE_DIR}/atlases/tpl-${HIPPUNFOLD_BUILTIN_ATLAS}"
+copy_resource_dir "$atlas_dir" "$atlas_cache_dir"
+copy_resource_dir "$atlas_dir" "$atlases_cache_dir"
 
 for template_name in "$HIPPUNFOLD_TEMPLATE" "$HIPPUNFOLD_INJECT_TEMPLATE"; do
   template_url="$(hippunfold_template_url "$template_name")"
@@ -161,5 +181,7 @@ echo "HippUnfold model cache is ready: $HIPPUNFOLD_CACHE_DIR"
 echo "Model tar: $model_tar"
 echo "Model directory: $model_dir"
 echo "Atlas directory: $atlas_dir"
+echo "Atlas cache directory: $atlas_cache_dir"
+echo "Alternate atlas cache directory: $atlases_cache_dir"
 echo "Template directory: ${HIPPUNFOLD_CACHE_DIR}/template/${HIPPUNFOLD_TEMPLATE}"
 echo "Injection template directory: ${HIPPUNFOLD_CACHE_DIR}/template/${HIPPUNFOLD_INJECT_TEMPLATE}"

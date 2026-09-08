@@ -64,7 +64,7 @@ hippunfold_model_file() {
   esac
 }
 
-mkdir -p "$HIPPUNFOLD_OUT" "$HIPPUNFOLD_WORK" "$HIPPUNFOLD_CACHE_DIR" "$LOG_DIR" "${HIPPUNFOLD_OUT}/.snakemake"
+mkdir -p "$HIPPUNFOLD_OUT" "$HIPPUNFOLD_WORK" "$HIPPUNFOLD_CACHE_DIR" "$LOG_DIR" "${HIPPUNFOLD_OUT}/.snakemake" "${HIPPUNFOLD_OUT}/config"
 
 required_model="${HIPPUNFOLD_REQUIRED_MODEL:-$(hippunfold_model_file "$HIPPUNFOLD_MODALITY")}"
 required_model_tar="${HIPPUNFOLD_CACHE_DIR}/model/${required_model}"
@@ -83,10 +83,12 @@ MSG
   exit 2
 fi
 atlas_dir="${HIPPUNFOLD_CACHE_DIR}/atlases_dl/tpl-${HIPPUNFOLD_BUILTIN_ATLAS}"
+atlas_cache_dir="${HIPPUNFOLD_CACHE_DIR}/atlas/${HIPPUNFOLD_BUILTIN_ATLAS}"
+atlases_cache_dir="${HIPPUNFOLD_CACHE_DIR}/atlases/tpl-${HIPPUNFOLD_BUILTIN_ATLAS}"
 template_dir="${HIPPUNFOLD_CACHE_DIR}/template/${HIPPUNFOLD_TEMPLATE}"
 inject_template_dir="${HIPPUNFOLD_CACHE_DIR}/template/${HIPPUNFOLD_INJECT_TEMPLATE}"
 if [[ "$HIPPUNFOLD_REQUIRE_CACHED_RESOURCES" == "1" ]]; then
-  for resource_dir in "$atlas_dir" "$template_dir" "$inject_template_dir"; do
+  for resource_dir in "$atlas_dir" "$atlas_cache_dir" "$atlases_cache_dir" "$template_dir" "$inject_template_dir"; do
     if [[ ! -d "$resource_dir" || -z "$(find "$resource_dir" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]]; then
       cat >&2 <<MSG
 ERROR: HippUnfold resource cache is missing or empty: $resource_dir
@@ -100,12 +102,25 @@ Set HIPPUNFOLD_REQUIRE_CACHED_RESOURCES=0 only for a deliberate online test.
 MSG
       exit 2
     fi
+    if [[ ! -f "${resource_dir}/.snakemake_timestamp" ]]; then
+      cat >&2 <<MSG
+ERROR: HippUnfold resource cache is missing Snakemake's directory marker: ${resource_dir}/.snakemake_timestamp
+
+Run the prefetch helper once with the updated script before resubmitting:
+
+  scripts/prefetch_hippunfold_models_hyak.sh ${CONFIG_ENV}
+
+This prevents array jobs from trying to rebuild shared resource directories.
+MSG
+      exit 2
+    fi
   done
 fi
 
 snakebids_marker="${HIPPUNFOLD_WORK}/.snakebids"
 snakemake_metadata="${HIPPUNFOLD_WORK}/.snakemake"
-mkdir -p "${snakemake_metadata}/locks"
+snakebids_config="${HIPPUNFOLD_WORK}/config"
+mkdir -p "${snakemake_metadata}/locks" "$snakebids_config"
 if [[ ! -s "$snakebids_marker" ]]; then
   tmp_marker="${snakebids_marker}.tmp.$$"
   printf '%s\n' '{"mode":"bidsapp"}' > "$tmp_marker"
@@ -167,6 +182,7 @@ run_log="${LOG_DIR}/hippunfold_run_${log_label}_${array_label}_${timestamp}.log"
   echo "HIPPUNFOLD_CACHE_DIR=$HIPPUNFOLD_CACHE_DIR"
   echo "SNAKEBIDS_MARKER=$snakebids_marker"
   echo "SNAKEMAKE_METADATA=$snakemake_metadata"
+  echo "SNAKEBIDS_CONFIG=$snakebids_config"
   echo "HIPPUNFOLD_PARTICIPANT_LABELS=$HIPPUNFOLD_PARTICIPANT_LABELS"
   echo "HIPPUNFOLD_MODALITY=$HIPPUNFOLD_MODALITY"
   echo "HIPPUNFOLD_TEMPLATE=$HIPPUNFOLD_TEMPLATE"
@@ -190,6 +206,7 @@ case "$CONTAINER_RUNTIME" in
       -v "${HIPPUNFOLD_CACHE_DIR}:/hippunfold_cache" \
       -v "${snakebids_marker}:/out/.snakebids" \
       -v "${snakemake_metadata}:/out/.snakemake" \
+      -v "${snakebids_config}:/out/config" \
       -e HIPPUNFOLD_CACHE_DIR=/hippunfold_cache \
       "$HIPPUNFOLD_IMAGE" \
       "$HIPPUNFOLD_CONTAINER_COMMAND" \
@@ -204,6 +221,7 @@ case "$CONTAINER_RUNTIME" in
       -B "${HIPPUNFOLD_CACHE_DIR}:/hippunfold_cache" \
       -B "${snakebids_marker}:/out/.snakebids" \
       -B "${snakemake_metadata}:/out/.snakemake" \
+      -B "${snakebids_config}:/out/config" \
       --env HIPPUNFOLD_CACHE_DIR=/hippunfold_cache \
       "$HIPPUNFOLD_IMAGE" \
       "$HIPPUNFOLD_CONTAINER_ENTRYPOINT" \
@@ -219,6 +237,7 @@ case "$CONTAINER_RUNTIME" in
       -B "${HIPPUNFOLD_CACHE_DIR}:/hippunfold_cache" \
       -B "${snakebids_marker}:/out/.snakebids" \
       -B "${snakemake_metadata}:/out/.snakemake" \
+      -B "${snakebids_config}:/out/config" \
       --env HIPPUNFOLD_CACHE_DIR=/hippunfold_cache \
       "$HIPPUNFOLD_IMAGE" \
       "$HIPPUNFOLD_CONTAINER_ENTRYPOINT" \

@@ -107,8 +107,10 @@ Before offline or restricted compute runs, populate the shared
 `HIPPUNFOLD_CACHE_DIR` from an internet-enabled login/data-transfer context.
 The helper downloads the required nnU-Net tarball into
 `${HIPPUNFOLD_CACHE_DIR}/model` and unpacks it. It also downloads the
-`multihist7` atlas and the default `CITI168` and `upenn` templates. This keeps
-compute nodes from resolving Zenodo or OSF during Snakemake DAG construction:
+`multihist7` atlas and the default `CITI168` and `upenn` templates. It writes
+Snakemake directory markers into these cache directories so array jobs do not
+try to rebuild shared atlas/template resources. This keeps compute nodes from
+resolving Zenodo or OSF during Snakemake DAG construction:
 
 ```bash
 scripts/prefetch_hippunfold_models_hyak.sh config/mri_preproc.env
@@ -123,8 +125,11 @@ T1w branch, verify:
 ls -lh "${HIPPUNFOLD_CACHE_DIR}/model/trained_model.3d_fullres.Task101_hcp1200_T1w.nnUNetTrainerV2.model_best.tar"
 test -d "${HIPPUNFOLD_CACHE_DIR}/model/trained_model.3d_fullres.Task101_hcp1200_T1w.nnUNetTrainerV2.model_best"
 test -d "${HIPPUNFOLD_CACHE_DIR}/atlases_dl/tpl-multihist7"
+test -d "${HIPPUNFOLD_CACHE_DIR}/atlas/multihist7"
+test -d "${HIPPUNFOLD_CACHE_DIR}/atlases/tpl-multihist7"
 test -d "${HIPPUNFOLD_CACHE_DIR}/template/CITI168"
 test -d "${HIPPUNFOLD_CACHE_DIR}/template/upenn"
+test -f "${HIPPUNFOLD_CACHE_DIR}/atlases/tpl-multihist7/.snakemake_timestamp"
 ```
 
 Array submission requires the model and resource caches to already exist in
@@ -193,10 +198,12 @@ for segmentation, usually `T1w` for the raw anatomical branch.
 Run `scripts/prefetch_hippunfold_models_hyak.sh config/mri_preproc.env` and
 wait for the download and extraction to complete before calling
 `scripts/submit_hippunfold_array_hyak.sh`.
-Each array task binds private `${HIPPUNFOLD_WORK}/SUBJECT/.snakebids` and
-`${HIPPUNFOLD_WORK}/SUBJECT/.snakemake` paths over `/out/.snakebids` and
-`/out/.snakemake`. This avoids races in Snakebids' non-atomic output-mode
-marker and Snakemake's lock metadata when many participants start at once.
+Each array task binds private `${HIPPUNFOLD_WORK}/SUBJECT/.snakebids`,
+`${HIPPUNFOLD_WORK}/SUBJECT/.snakemake`, and
+`${HIPPUNFOLD_WORK}/SUBJECT/config` paths over `/out/.snakebids`,
+`/out/.snakemake`, and `/out/config`. This avoids races in Snakebids'
+non-atomic output-mode marker, generated Snakemake config, and lock metadata
+when many participants start at once.
 The FIRST branch reads completed fMRIPrep anatomical outputs and writes
 `${DERIVATIVES_DIR}/first`. The MSMAll branch is a three-stage HCP workflow:
 HCP structural preprocessing, HCP functional/FIX preprocessing, then MSMAll.
