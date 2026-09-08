@@ -25,15 +25,19 @@ HIPPUNFOLD_WORK="${HIPPUNFOLD_WORK:-${PROJECT_DIR}/scratch/hippunfold_work}"
 HIPPUNFOLD_CACHE_DIR="${HIPPUNFOLD_CACHE_DIR:-${PROJECT_DIR}/cache/hippunfold}"
 HIPPUNFOLD_PARTICIPANT_LABELS="${HIPPUNFOLD_PARTICIPANT_LABELS:-}"
 HIPPUNFOLD_MODALITY="${HIPPUNFOLD_MODALITY:-T1w}"
+HIPPUNFOLD_TEMPLATE="${HIPPUNFOLD_TEMPLATE:-CITI168}"
+HIPPUNFOLD_INJECT_TEMPLATE="${HIPPUNFOLD_INJECT_TEMPLATE:-upenn}"
+HIPPUNFOLD_BUILTIN_ATLAS="${HIPPUNFOLD_BUILTIN_ATLAS:-multihist7}"
 HIPPUNFOLD_CORES="${HIPPUNFOLD_CORES:-${NTHREADS:-all}}"
 HIPPUNFOLD_CONTAINER_ENTRYPOINT="${HIPPUNFOLD_CONTAINER_ENTRYPOINT:-/src/.pixi/envs/default/bin/hippunfold}"
 HIPPUNFOLD_REQUIRE_CACHED_MODEL="${HIPPUNFOLD_REQUIRE_CACHED_MODEL:-1}"
+HIPPUNFOLD_REQUIRE_CACHED_RESOURCES="${HIPPUNFOLD_REQUIRE_CACHED_RESOURCES:-1}"
 if [[ -n "${HIPPUNFOLD_SINGLE_SUBJECT:-}" ]]; then
   HIPPUNFOLD_PARTICIPANT_LABELS="$HIPPUNFOLD_SINGLE_SUBJECT"
   HIPPUNFOLD_WORK="${HIPPUNFOLD_WORK}/${HIPPUNFOLD_SINGLE_SUBJECT#sub-}"
 fi
 
-required_vars=(BIDS_DIR DERIVATIVES_DIR LOG_DIR HIPPUNFOLD_OUT HIPPUNFOLD_WORK HIPPUNFOLD_CACHE_DIR HIPPUNFOLD_IMAGE CONTAINER_RUNTIME HIPPUNFOLD_MODALITY HIPPUNFOLD_CORES)
+required_vars=(BIDS_DIR DERIVATIVES_DIR LOG_DIR HIPPUNFOLD_OUT HIPPUNFOLD_WORK HIPPUNFOLD_CACHE_DIR HIPPUNFOLD_IMAGE CONTAINER_RUNTIME HIPPUNFOLD_MODALITY HIPPUNFOLD_TEMPLATE HIPPUNFOLD_INJECT_TEMPLATE HIPPUNFOLD_BUILTIN_ATLAS HIPPUNFOLD_CORES)
 for var_name in "${required_vars[@]}"; do
   if [[ -z "${!var_name:-}" ]]; then
     echo "ERROR: $var_name is not set in $CONFIG_ENV" >&2
@@ -77,6 +81,26 @@ Set HIPPUNFOLD_REQUIRE_CACHED_MODEL=0 only for a deliberate online test.
 MSG
   exit 2
 fi
+atlas_dir="${HIPPUNFOLD_CACHE_DIR}/atlases_dl/tpl-${HIPPUNFOLD_BUILTIN_ATLAS}"
+template_dir="${HIPPUNFOLD_CACHE_DIR}/template/${HIPPUNFOLD_TEMPLATE}"
+inject_template_dir="${HIPPUNFOLD_CACHE_DIR}/template/${HIPPUNFOLD_INJECT_TEMPLATE}"
+if [[ "$HIPPUNFOLD_REQUIRE_CACHED_RESOURCES" == "1" ]]; then
+  for resource_dir in "$atlas_dir" "$template_dir" "$inject_template_dir"; do
+    if [[ ! -d "$resource_dir" || -z "$(find "$resource_dir" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]]; then
+      cat >&2 <<MSG
+ERROR: HippUnfold resource cache is missing or empty: $resource_dir
+
+Compute nodes may not have internet/DNS access, so HippUnfold cannot download
+atlases or templates during array jobs. Run this before resubmitting:
+
+  scripts/prefetch_hippunfold_models_hyak.sh ${CONFIG_ENV}
+
+Set HIPPUNFOLD_REQUIRE_CACHED_RESOURCES=0 only for a deliberate online test.
+MSG
+      exit 2
+    fi
+  done
+fi
 
 snakebids_marker="${HIPPUNFOLD_WORK}/.snakebids"
 if [[ ! -s "$snakebids_marker" ]]; then
@@ -101,7 +125,7 @@ then
   exit 2
 fi
 
-hippunfold_args=(/data /out participant --modality "$HIPPUNFOLD_MODALITY" --cores "$HIPPUNFOLD_CORES")
+hippunfold_args=(/data /out participant --modality "$HIPPUNFOLD_MODALITY" --template "$HIPPUNFOLD_TEMPLATE" --inject_template "$HIPPUNFOLD_INJECT_TEMPLATE" --cores "$HIPPUNFOLD_CORES")
 if [[ -n "$HIPPUNFOLD_PARTICIPANT_LABELS" ]]; then
   hippunfold_args+=(--participant-label)
   # shellcheck disable=SC2206
@@ -141,6 +165,9 @@ run_log="${LOG_DIR}/hippunfold_run_${log_label}_${array_label}_${timestamp}.log"
   echo "SNAKEBIDS_MARKER=$snakebids_marker"
   echo "HIPPUNFOLD_PARTICIPANT_LABELS=$HIPPUNFOLD_PARTICIPANT_LABELS"
   echo "HIPPUNFOLD_MODALITY=$HIPPUNFOLD_MODALITY"
+  echo "HIPPUNFOLD_TEMPLATE=$HIPPUNFOLD_TEMPLATE"
+  echo "HIPPUNFOLD_INJECT_TEMPLATE=$HIPPUNFOLD_INJECT_TEMPLATE"
+  echo "HIPPUNFOLD_BUILTIN_ATLAS=$HIPPUNFOLD_BUILTIN_ATLAS"
   echo "HIPPUNFOLD_CORES=$HIPPUNFOLD_CORES"
   echo "HIPPUNFOLD_REQUIRED_MODEL=$required_model"
   echo "HIPPUNFOLD_CONTAINER_ENTRYPOINT=$HIPPUNFOLD_CONTAINER_ENTRYPOINT"

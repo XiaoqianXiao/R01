@@ -11,6 +11,7 @@ The plan remains the scientific specification; these scripts are operational hel
 - `scripts/prefetch_templateflow_hyak.sh`: populates the TemplateFlow cache before offline Hyak fMRIPrep jobs.
 - `scripts/build_hcp_pipelines.sbatch`: builds the HCP Pipelines 5.0.0 `.sif` used by the MSMAll branch.
 - `scripts/build_hippunfold.sbatch`: builds the HippUnfold 2.0.0 `.sif` used by the HippUnfold branch.
+- `scripts/prefetch_hippunfold_models_hyak.sh`: downloads and unpacks the HippUnfold nnU-Net model, atlas, and template cache before offline Hyak array jobs.
 - `scripts/run_python_hyak.sh`: runs Python helper scripts inside `/gscratch/fang/images/jupyter.sif`.
 - `scripts/make_multisession_manifest.py`: records each subject/session and whether anat, func, and fmap files are present.
 - `scripts/audit_sdc_metadata.py`: audits AP/PA fieldmap JSON metadata, `B0FieldIdentifier` / `B0FieldSource` mappings, `IntendedFor`, readout metadata, and optional fieldmap geometry.
@@ -103,17 +104,32 @@ HippUnfold containers from v1.3.0 onward download model files on demand.
 Before offline or restricted compute runs, populate the shared
 `HIPPUNFOLD_CACHE_DIR` from an internet-enabled login/data-transfer context.
 The helper downloads the required nnU-Net tarball into
-`${HIPPUNFOLD_CACHE_DIR}/model` and unpacks it so compute nodes do not need to
-resolve Zenodo during Snakemake DAG construction:
+`${HIPPUNFOLD_CACHE_DIR}/model` and unpacks it. It also downloads the
+`multihist7` atlas and the default `CITI168` and `upenn` templates. This keeps
+compute nodes from resolving Zenodo or OSF during Snakemake DAG construction:
 
 ```bash
 scripts/prefetch_hippunfold_models_hyak.sh config/mri_preproc.env
 ```
 
-Array submission requires the model to already exist in `HIPPUNFOLD_CACHE_DIR`
-by default. This prevents compute-node jobs from failing during DAG construction
-when they cannot resolve `zenodo.org`. Set `HIPPUNFOLD_REQUIRE_CACHED_MODEL=0`
-only for a deliberate online test.
+Wait for the helper to finish downloading and extracting the model before
+submitting the array. A successful run prints `HippUnfold model cache is ready`
+and reports both the model tarball and unpacked model directory. For the default
+T1w branch, verify:
+
+```bash
+ls -lh "${HIPPUNFOLD_CACHE_DIR}/model/trained_model.3d_fullres.Task101_hcp1200_T1w.nnUNetTrainerV2.model_best.tar"
+test -d "${HIPPUNFOLD_CACHE_DIR}/model/trained_model.3d_fullres.Task101_hcp1200_T1w.nnUNetTrainerV2.model_best"
+test -d "${HIPPUNFOLD_CACHE_DIR}/atlases_dl/tpl-multihist7"
+test -d "${HIPPUNFOLD_CACHE_DIR}/template/CITI168"
+test -d "${HIPPUNFOLD_CACHE_DIR}/template/upenn"
+```
+
+Array submission requires the model and resource caches to already exist in
+`HIPPUNFOLD_CACHE_DIR` by default. This prevents compute-node jobs from failing
+during DAG construction when they cannot resolve `zenodo.org` or OSF. Set
+`HIPPUNFOLD_REQUIRE_CACHED_MODEL=0` or
+`HIPPUNFOLD_REQUIRE_CACHED_RESOURCES=0` only for a deliberate online test.
 
 Populate the project TemplateFlow cache before submitting fMRIPrep on compute
 nodes. No TemplateFlow customization is needed; the scripts use
@@ -172,6 +188,9 @@ scripts/submit_msmall_array_hyak.sh config/mri_preproc.env
 The HippUnfold branch reads raw BIDS and writes `${DERIVATIVES_DIR}/hippunfold`.
 Set `HIPPUNFOLD_MODALITY` in `config/mri_preproc.env` to the image type used
 for segmentation, usually `T1w` for the raw anatomical branch.
+Run `scripts/prefetch_hippunfold_models_hyak.sh config/mri_preproc.env` and
+wait for the download and extraction to complete before calling
+`scripts/submit_hippunfold_array_hyak.sh`.
 Each array task binds a private `${HIPPUNFOLD_WORK}/SUBJECT/.snakebids` over
 `/out/.snakebids`, avoiding races in Snakebids' non-atomic output-mode marker
 when many participants start at once.

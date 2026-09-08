@@ -18,7 +18,11 @@ source "$CONFIG_ENV"
 HIPPUNFOLD_OUT="${HIPPUNFOLD_OUT:-${DERIVATIVES_DIR}/hippunfold}"
 HIPPUNFOLD_CACHE_DIR="${HIPPUNFOLD_CACHE_DIR:-${PROJECT_DIR}/cache/hippunfold}"
 HIPPUNFOLD_MODALITY="${HIPPUNFOLD_MODALITY:-T1w}"
+HIPPUNFOLD_TEMPLATE="${HIPPUNFOLD_TEMPLATE:-CITI168}"
+HIPPUNFOLD_INJECT_TEMPLATE="${HIPPUNFOLD_INJECT_TEMPLATE:-upenn}"
+HIPPUNFOLD_BUILTIN_ATLAS="${HIPPUNFOLD_BUILTIN_ATLAS:-multihist7}"
 HIPPUNFOLD_REQUIRE_CACHED_MODEL="${HIPPUNFOLD_REQUIRE_CACHED_MODEL:-1}"
+HIPPUNFOLD_REQUIRE_CACHED_RESOURCES="${HIPPUNFOLD_REQUIRE_CACHED_RESOURCES:-1}"
 mkdir -p logs/slurm "$LOG_DIR" "$HIPPUNFOLD_OUT" "${HIPPUNFOLD_CACHE_DIR}/model"
 
 hippunfold_model_file() {
@@ -44,6 +48,26 @@ submitting the array:
 Set HIPPUNFOLD_REQUIRE_CACHED_MODEL=0 only for a deliberate online test.
 MSG
   exit 2
+fi
+atlas_dir="${HIPPUNFOLD_CACHE_DIR}/atlases_dl/tpl-${HIPPUNFOLD_BUILTIN_ATLAS}"
+template_dir="${HIPPUNFOLD_CACHE_DIR}/template/${HIPPUNFOLD_TEMPLATE}"
+inject_template_dir="${HIPPUNFOLD_CACHE_DIR}/template/${HIPPUNFOLD_INJECT_TEMPLATE}"
+if [[ "$HIPPUNFOLD_REQUIRE_CACHED_RESOURCES" == "1" ]]; then
+  for resource_dir in "$atlas_dir" "$template_dir" "$inject_template_dir"; do
+    if [[ ! -d "$resource_dir" || -z "$(find "$resource_dir" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]]; then
+      cat >&2 <<MSG
+ERROR: HippUnfold resource cache is missing or empty: $resource_dir
+
+Run this from an internet-enabled Hyak login or data-transfer context before
+submitting the array:
+
+  scripts/prefetch_hippunfold_models_hyak.sh ${CONFIG_ENV}
+
+Set HIPPUNFOLD_REQUIRE_CACHED_RESOURCES=0 only for a deliberate online test.
+MSG
+      exit 2
+    fi
+  done
 fi
 
 snakebids_marker="${HIPPUNFOLD_OUT}/.snakebids"
