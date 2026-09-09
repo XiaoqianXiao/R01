@@ -9,12 +9,17 @@ The plan remains the scientific specification; these scripts are operational hel
 - `scripts/run_bids_validator.sh`: runs BIDS validation and saves a log.
 - `scripts/download_templateflow_cache.sh`: downloads and packages the TemplateFlow cache on a machine with internet access.
 - `scripts/prefetch_templateflow_hyak.sh`: populates the TemplateFlow cache before offline Hyak fMRIPrep jobs.
+- `scripts/build_mriqc.sbatch`: builds the MRIQC `.sif` used for raw-image QC.
 - `scripts/build_hcp_pipelines.sbatch`: builds the HCP Pipelines 5.0.0 `.sif` used by the MSMAll branch.
 - `scripts/build_hippunfold.sbatch`: builds the HippUnfold 2.0.0 `.sif` used by the HippUnfold branch.
 - `scripts/prefetch_hippunfold_models_hyak.sh`: downloads and unpacks the HippUnfold nnU-Net model, atlas, and template cache before offline Hyak array jobs.
 - `scripts/run_python_hyak.sh`: runs Python helper scripts inside `/gscratch/fang/images/jupyter.sif`.
 - `scripts/make_multisession_manifest.py`: records each subject/session and whether anat, func, and fmap files are present.
 - `scripts/audit_sdc_metadata.py`: audits AP/PA fieldmap JSON metadata, `B0FieldIdentifier` / `B0FieldSource` mappings, `IntendedFor`, readout metadata, and optional fieldmap geometry.
+- `scripts/run_mriqc.sh`: runs MRIQC participant or group level with project resource controls and `--no-sub` by default.
+- `scripts/submit_mriqc_array_hyak.sh`: submits one MRIQC participant-level array task per BIDS subject.
+- `scripts/submit_mriqc_hyak.sbatch`: submits the MRIQC participant-level worker as a Hyak SLURM job.
+- `scripts/submit_mriqc_group_hyak.sbatch`: submits MRIQC group-level report/table generation after participant outputs are complete.
 - `scripts/run_fmriprep.sh`: runs the canonical fMRIPrep 25.2.5 workflow with `func`, `T1w`, `MNI152NLin2009cAsym:res-native`, `fsnative`, CIFTI 91k, MSMSulc, explicit session tracking, and `--slice-time-ref 0.5`.
 - `scripts/submit_fmriprep_array_hyak.sh`: generates a subject list from `BIDS_DIR` and submits one SLURM array task per subject.
 - `scripts/submit_fmriprep_hyak.sbatch`: submits the canonical fMRIPrep worker as a Hyak SLURM job.
@@ -52,6 +57,8 @@ Also set:
 
 - `CONTAINER_RUNTIME` to `apptainer` or `singularity`
 - `FMRIPREP_IMAGE` to the frozen fMRIPrep 25.2.5 `.sif`, usually `/gscratch/fang/images/fmriprep-25.2.5.sif`
+- `MRIQC_IMAGE` to the frozen MRIQC `.sif`, usually `/gscratch/fang/images/mriqc-24.0.2.sif`
+- `MRIQC_NO_SUB=1` unless anonymized MRIQC metric submission has been approved
 - `PYTHON_CONTAINER_IMAGE` to the Python/Jupyter `.sif`, usually `/gscratch/fang/images/jupyter.sif`
 - `PYTHON_CONTAINER_PYTHON` to the Python executable inside that container, usually `python3`
 - `APPTAINER_NO_MOUNT` to `bind-paths` so Hyak does not try to auto-mount unavailable site paths
@@ -64,6 +71,20 @@ If the fMRIPrep Apptainer image has not been built yet, submit the existing imag
 
 ```bash
 sbatch scripts/build_fmriprep.sbatch
+```
+
+If the MRIQC Apptainer image has not been built yet, submit:
+
+```bash
+sbatch scripts/build_mriqc.sbatch
+```
+
+The build script writes `/gscratch/fang/images/mriqc-24.0.2.sif` by default,
+matching `MRIQC_IMAGE` in `config/mri_preproc.env`. To build a different
+project-frozen version:
+
+```bash
+MRIQC_VERSION=YOUR_VERSION sbatch scripts/build_mriqc.sbatch
 ```
 
 If the HCP Pipelines 5.0.0 Apptainer image for MSMAll has not been built yet,
@@ -191,6 +212,30 @@ scripts/submit_hippunfold_array_hyak.sh config/mri_preproc.env
 scripts/submit_first_array_hyak.sh config/mri_preproc.env
 scripts/submit_msmall_array_hyak.sh config/mri_preproc.env
 ```
+
+Run MRIQC before or alongside production fMRIPrep. Participant level is run as
+one subject per SLURM array task:
+
+```bash
+scripts/submit_mriqc_array_hyak.sh config/mri_preproc.env
+```
+
+After all participant-level MRIQC jobs are complete, generate group-level
+reports and IQM tables from the same output directory:
+
+```bash
+sbatch scripts/submit_mriqc_group_hyak.sbatch config/mri_preproc.env
+```
+
+By default MRIQC runs with:
+
+```bash
+MRIQC_MODALITIES="T1w T2w bold"
+MRIQC_NO_SUB="1"
+```
+
+Keep `MRIQC_NO_SUB=1` unless project leadership explicitly approves submission
+of anonymized MRIQC IQMs.
 
 The HippUnfold branch reads raw BIDS and writes `${DERIVATIVES_DIR}/hippunfold`.
 Set `HIPPUNFOLD_MODALITY` in `config/mri_preproc.env` to the image type used
