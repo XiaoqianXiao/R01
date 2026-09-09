@@ -23,6 +23,7 @@ source "$CONFIG_ENV"
 HIPPUNFOLD_OUT="${HIPPUNFOLD_OUT:-${DERIVATIVES_DIR}/hippunfold}"
 HIPPUNFOLD_WORK="${HIPPUNFOLD_WORK:-${PROJECT_DIR}/scratch/hippunfold_work}"
 HIPPUNFOLD_CACHE_DIR="${HIPPUNFOLD_CACHE_DIR:-${PROJECT_DIR}/cache/hippunfold}"
+HIPPUNFOLD_TMPDIR="${HIPPUNFOLD_TMPDIR:-${HIPPUNFOLD_WORK}/tmp}"
 HIPPUNFOLD_PARTICIPANT_LABELS="${HIPPUNFOLD_PARTICIPANT_LABELS:-}"
 HIPPUNFOLD_MODALITY="${HIPPUNFOLD_MODALITY:-T1w}"
 HIPPUNFOLD_TEMPLATE="${HIPPUNFOLD_TEMPLATE:-CITI168}"
@@ -36,9 +37,10 @@ HIPPUNFOLD_REQUIRE_CACHED_RESOURCES="${HIPPUNFOLD_REQUIRE_CACHED_RESOURCES:-1}"
 if [[ -n "${HIPPUNFOLD_SINGLE_SUBJECT:-}" ]]; then
   HIPPUNFOLD_PARTICIPANT_LABELS="$HIPPUNFOLD_SINGLE_SUBJECT"
   HIPPUNFOLD_WORK="${HIPPUNFOLD_WORK}/${HIPPUNFOLD_SINGLE_SUBJECT#sub-}"
+  HIPPUNFOLD_TMPDIR="${HIPPUNFOLD_TMPDIR}/${HIPPUNFOLD_SINGLE_SUBJECT#sub-}"
 fi
 
-required_vars=(BIDS_DIR DERIVATIVES_DIR LOG_DIR HIPPUNFOLD_OUT HIPPUNFOLD_WORK HIPPUNFOLD_CACHE_DIR HIPPUNFOLD_IMAGE CONTAINER_RUNTIME HIPPUNFOLD_MODALITY HIPPUNFOLD_TEMPLATE HIPPUNFOLD_INJECT_TEMPLATE HIPPUNFOLD_BUILTIN_ATLAS HIPPUNFOLD_CORES HIPPUNFOLD_CONTAINER_ENTRYPOINT HIPPUNFOLD_CONTAINER_COMMAND)
+required_vars=(BIDS_DIR DERIVATIVES_DIR LOG_DIR HIPPUNFOLD_OUT HIPPUNFOLD_WORK HIPPUNFOLD_CACHE_DIR HIPPUNFOLD_TMPDIR HIPPUNFOLD_IMAGE CONTAINER_RUNTIME HIPPUNFOLD_MODALITY HIPPUNFOLD_TEMPLATE HIPPUNFOLD_INJECT_TEMPLATE HIPPUNFOLD_BUILTIN_ATLAS HIPPUNFOLD_CORES HIPPUNFOLD_CONTAINER_ENTRYPOINT HIPPUNFOLD_CONTAINER_COMMAND)
 for var_name in "${required_vars[@]}"; do
   if [[ -z "${!var_name:-}" ]]; then
     echo "ERROR: $var_name is not set in $CONFIG_ENV" >&2
@@ -64,7 +66,7 @@ hippunfold_model_file() {
   esac
 }
 
-mkdir -p "$HIPPUNFOLD_OUT" "$HIPPUNFOLD_WORK" "$HIPPUNFOLD_CACHE_DIR" "$LOG_DIR" "${HIPPUNFOLD_OUT}/.snakemake" "${HIPPUNFOLD_OUT}/config"
+mkdir -p "$HIPPUNFOLD_OUT" "$HIPPUNFOLD_WORK" "$HIPPUNFOLD_CACHE_DIR" "$HIPPUNFOLD_TMPDIR" "$LOG_DIR" "${HIPPUNFOLD_OUT}/.snakemake" "${HIPPUNFOLD_OUT}/config"
 
 required_model="${HIPPUNFOLD_REQUIRED_MODEL:-$(hippunfold_model_file "$HIPPUNFOLD_MODALITY")}"
 required_model_tar="${HIPPUNFOLD_CACHE_DIR}/model/${required_model}"
@@ -180,6 +182,7 @@ run_log="${LOG_DIR}/hippunfold_run_${log_label}_${array_label}_${timestamp}.log"
   echo "HIPPUNFOLD_IMAGE=$HIPPUNFOLD_IMAGE"
   echo "CONTAINER_RUNTIME=$CONTAINER_RUNTIME"
   echo "HIPPUNFOLD_CACHE_DIR=$HIPPUNFOLD_CACHE_DIR"
+  echo "HIPPUNFOLD_TMPDIR=$HIPPUNFOLD_TMPDIR"
   echo "SNAKEBIDS_MARKER=$snakebids_marker"
   echo "SNAKEMAKE_METADATA=$snakemake_metadata"
   echo "SNAKEBIDS_CONFIG=$snakebids_config"
@@ -203,11 +206,16 @@ case "$CONTAINER_RUNTIME" in
       -v "${BIDS_DIR}:/data:ro" \
       -v "${HIPPUNFOLD_OUT}:/out" \
       -v "${HIPPUNFOLD_WORK}:/work" \
+      -v "${HIPPUNFOLD_TMPDIR}:/tmp" \
       -v "${HIPPUNFOLD_CACHE_DIR}:/hippunfold_cache" \
       -v "${snakebids_marker}:/out/.snakebids" \
       -v "${snakemake_metadata}:/out/.snakemake" \
       -v "${snakebids_config}:/out/config" \
       -e HIPPUNFOLD_CACHE_DIR=/hippunfold_cache \
+      -e TMPDIR=/tmp \
+      -e TEMP=/tmp \
+      -e TMP=/tmp \
+      -e XDG_CACHE_HOME=/hippunfold_cache/xdg \
       "$HIPPUNFOLD_IMAGE" \
       "$HIPPUNFOLD_CONTAINER_COMMAND" \
       "${hippunfold_args[@]}" 2>&1 | tee "$run_log"
@@ -218,11 +226,16 @@ case "$CONTAINER_RUNTIME" in
       -B "${BIDS_DIR}:/data:ro" \
       -B "${HIPPUNFOLD_OUT}:/out" \
       -B "${HIPPUNFOLD_WORK}:/work" \
+      -B "${HIPPUNFOLD_TMPDIR}:/tmp" \
       -B "${HIPPUNFOLD_CACHE_DIR}:/hippunfold_cache" \
       -B "${snakebids_marker}:/out/.snakebids" \
       -B "${snakemake_metadata}:/out/.snakemake" \
       -B "${snakebids_config}:/out/config" \
       --env HIPPUNFOLD_CACHE_DIR=/hippunfold_cache \
+      --env TMPDIR=/tmp \
+      --env TEMP=/tmp \
+      --env TMP=/tmp \
+      --env XDG_CACHE_HOME=/hippunfold_cache/xdg \
       "$HIPPUNFOLD_IMAGE" \
       "$HIPPUNFOLD_CONTAINER_ENTRYPOINT" \
       "$HIPPUNFOLD_CONTAINER_COMMAND" \
@@ -234,11 +247,16 @@ case "$CONTAINER_RUNTIME" in
       -B "${BIDS_DIR}:/data:ro" \
       -B "${HIPPUNFOLD_OUT}:/out" \
       -B "${HIPPUNFOLD_WORK}:/work" \
+      -B "${HIPPUNFOLD_TMPDIR}:/tmp" \
       -B "${HIPPUNFOLD_CACHE_DIR}:/hippunfold_cache" \
       -B "${snakebids_marker}:/out/.snakebids" \
       -B "${snakemake_metadata}:/out/.snakemake" \
       -B "${snakebids_config}:/out/config" \
       --env HIPPUNFOLD_CACHE_DIR=/hippunfold_cache \
+      --env TMPDIR=/tmp \
+      --env TEMP=/tmp \
+      --env TMP=/tmp \
+      --env XDG_CACHE_HOME=/hippunfold_cache/xdg \
       "$HIPPUNFOLD_IMAGE" \
       "$HIPPUNFOLD_CONTAINER_ENTRYPOINT" \
       "$HIPPUNFOLD_CONTAINER_COMMAND" \
