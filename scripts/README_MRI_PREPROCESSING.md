@@ -3,6 +3,78 @@
 These scripts implement the executable pieces of `plans/MRI_Preprocessing_Plan.md`.
 The plan remains the scientific specification; these scripts are operational helpers.
 
+## Project Execution Summary
+
+**Goal:** produce a frozen, auditable MRI preprocessing release with raw-data
+QC, canonical fMRIPrep derivatives, and separately versioned optional branches.
+
+**Operating model:** run cohort-scale work on Hyak using subject-level SLURM
+arrays where possible. Keep one BIDS subject per array task for fMRIPrep,
+MRIQC, HippUnfold, FIRST, and MSMAll branch workers.
+
+**Done means:**
+
+- BIDS validation and SDC metadata audits are complete with logs archived.
+- MRIQC participant and group outputs are generated under `derivatives/qc/mriqc`.
+- Canonical fMRIPrep outputs pass expected-file checks.
+- Optional branches are run only after their prerequisites and pilot/QC gates are met.
+- Container images, commands, logs, config, and checksums are preserved in the release manifest.
+- QC decisions are recorded in the branch-aware QC files described by the QC SOP.
+
+## Execution Roadmap
+
+| Phase | Purpose | Main commands | Exit gate |
+|---|---|---|---|
+| 0. Configure | Create project-specific env file and verify Hyak paths/resources. | `cp config/mri_preproc.env.example config/mri_preproc.env` | Config is reviewed; required paths, images, license, resources, and array concurrency are set. |
+| 1. Build/cache | Prepare frozen containers and offline resources. | `sbatch scripts/build_mriqc.sbatch`; `sbatch scripts/build_fmriprep.sbatch`; `scripts/prefetch_templateflow_hyak.sh config/mri_preproc.env` | Required `.sif` files, checksums, TemplateFlow cache, and branch-specific caches exist. |
+| 2. Raw preflight | Validate BIDS and audit AP/PA SDC metadata before production. | `scripts/run_bids_validator.sh config/mri_preproc.env`; `scripts/run_python_hyak.sh ... audit_sdc_metadata.py` | No unresolved BIDS/metadata errors that compromise preprocessing. |
+| 3. MRIQC | Generate raw-image QC reports and cohort IQM tables. | `scripts/submit_mriqc_array_hyak.sh config/mri_preproc.env`; `sbatch scripts/submit_mriqc_group_hyak.sbatch config/mri_preproc.env` | Participant and group MRIQC reports are complete and ready for reviewer adjudication. |
+| 4. Pilot | Run the pre-production pilot and inspect expected outputs. | `sbatch scripts/submit_preproduction_pilot_hyak.sbatch config/mri_preproc.env` | Pilot QC accepts fMRIPrep settings, SDC behavior, output spaces, and resource profile. |
+| 5. Canonical production | Run frozen fMRIPrep release. | `scripts/submit_fmriprep_array_hyak.sh config/mri_preproc.env` | Every intended subject has complete or explicitly documented fMRIPrep status. |
+| 6. Output/provenance closeout | Check derivatives and freeze provenance. | `scripts/check_fmriprep_outputs.py`; `scripts/freeze_release_manifest.py` | Expected outputs, logs, commands, config, and checksums are archived. |
+| 7. Optional branches | Run branch-specific derivatives only when eligible and approved. | `scripts/submit_hippunfold_array_hyak.sh`; `scripts/submit_first_array_hyak.sh`; `scripts/submit_msmall_array_hyak.sh` | Branch outputs and branch-specific QC statuses are recorded without changing unrelated branch decisions. |
+
+## Dependency Map
+
+```text
+config/mri_preproc.env
+  ├── container builds / resource caches
+  │     ├── MRIQC image
+  │     ├── fMRIPrep image
+  │     ├── TemplateFlow cache
+  │     ├── HippUnfold image/cache
+  │     └── HCP Pipelines image
+  ├── raw preflight
+  │     ├── BIDS validation
+  │     └── SDC metadata audit
+  ├── MRIQC participant array ──> MRIQC group
+  └── fMRIPrep pilot ──> fMRIPrep production ──> output check / release manifest
+                                      ├── HippUnfold branch
+                                      ├── FIRST branch
+                                      └── MSMAll branch, after eligibility gate
+```
+
+## Management Checkpoints
+
+Use these checkpoints as sign-offs before moving to the next expensive stage:
+
+- **Configuration review:** confirm Hyak paths, container image paths, resource requests, `FS_LICENSE`, and privacy setting `MRIQC_NO_SUB`.
+- **Raw-data gate:** BIDS validation and SDC metadata audit have no unresolved blocking errors.
+- **MRIQC gate:** participant reports and group IQM tables exist; metric outliers are queued for manual review, not automatically failed.
+- **Pilot gate:** fMRIPrep pilot confirms AP/PA SDC behavior, output-space choices, multi-session handling, and memory/runtime fit.
+- **Production gate:** fMRIPrep array jobs are complete, crashes are logged as `processing_failed`, and expected outputs are checked.
+- **Branch gate:** HippUnfold, FIRST, and MSMAll run only after branch prerequisites are met and the branch-specific QC plan is ready.
+- **Release gate:** manifests, checksums, logs, command records, QC tables, rerun notes, and exclusion reasons are versioned together.
+
+## Ownership Model
+
+| Role | Owns | Key decision |
+|---|---|---|
+| Preprocessing lead | Frozen preprocessing configuration, pilot acceptance, release gate. | Whether the production settings are scientifically and operationally ready. |
+| Hyak operator | Container builds, cache preparation, SLURM submissions, job monitoring. | Whether the cluster run is technically ready to launch or rerun. |
+| QC reviewer | MRIQC/fMRIPrep/branch visual review and reason-code entry. | Whether each raw scan or derivative branch is `pass`, `pass_with_note`, `review_required`, or `fail`. |
+| Analysis lead | Downstream recipe-specific exclusions and eligibility. | Whether data enter a specific FC, GLM, MVPA, or longitudinal analysis. |
+
 ## Files
 
 - `config/mri_preproc.env.example`: copy to `config/mri_preproc.env` on Hyak and edit project paths, Apptainer/Singularity image, FreeSurfer license, resource limits, and participant labels.
@@ -285,10 +357,12 @@ scripts/run_python_hyak.sh config/mri_preproc.env \
 
 Before cohort-wide production, freeze and archive:
 
+- exact MRIQC container image and digest
 - exact fMRIPrep 25.2.5 container image and digest
 - FreeSurfer license/configuration and version
 - TemplateFlow snapshot
 - BIDS Validator version and validation report
+- MRIQC participant reports, group reports, and IQM tables
 - explicit anatomical-reference strategy
 - explicit `--track-sessions` or `--no-track-sessions`
 - exact fMRIPrep command and resource settings
@@ -296,5 +370,13 @@ Before cohort-wide production, freeze and archive:
 - pilot QC decisions
 - output check report
 - release manifest
+
+Track every cohort run with:
+
+- subject list and session manifest used for the array
+- SLURM job IDs and array ranges
+- failed jobs and rerun reason
+- final output location
+- reviewer/adjudicator responsible for the next QC decision
 
 The canonical fMRIPrep scripts intentionally do not run denoising, atlas extraction, FC, graph analysis, task GLM, MVPA, HippUnfold, FIRST, or MSMAll production. Those are separate derivative branches in the plan and need their own frozen configurations. The branch wrappers above provide operational entry points for HippUnfold, FIRST, and MSMAll, but each branch still requires project-specific pilot acceptance before cohort-wide production.
