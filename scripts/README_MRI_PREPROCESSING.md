@@ -1,7 +1,8 @@
 # MRI Preprocessing Scripts
 
-These scripts implement the executable pieces of `plans/MRI_Preprocessing_Plan.md`.
-The plan remains the scientific specification; these scripts are operational helpers.
+These scripts implement the executable pieces of the MRI preprocessing plans in
+`plans/`. The plans remain the scientific specification; these scripts are
+operational helpers.
 
 ## Project Execution Summary
 
@@ -32,7 +33,7 @@ MRIQC, HippUnfold, FIRST, and MSMAll branch workers.
 | 4. Pilot | Run the pre-production pilot and inspect expected outputs. | `sbatch scripts/submit_preproduction_pilot_hyak.sbatch config/mri_preproc.env` | Pilot QC accepts fMRIPrep settings, SDC behavior, output spaces, and resource profile. |
 | 5. Canonical production | Run frozen fMRIPrep release. | `scripts/submit_fmriprep_array_hyak.sh config/mri_preproc.env` | Every intended subject has complete or explicitly documented fMRIPrep status. |
 | 6. Output/provenance closeout | Check derivatives and freeze provenance. | `scripts/check_fmriprep_outputs.py`; `scripts/freeze_release_manifest.py` | Expected outputs, logs, commands, config, and checksums are archived. |
-| 7. Optional branches | Run branch-specific derivatives only when eligible and approved. | `scripts/submit_hippunfold_array_hyak.sh`; `scripts/submit_first_array_hyak.sh`; `scripts/submit_msmall_array_hyak.sh` | Branch outputs and branch-specific QC statuses are recorded without changing unrelated branch decisions. |
+| 7. Optional branches | Run branch-specific derivatives only when eligible and approved. | `scripts/submit_hippunfold_array_hyak.sh`; `scripts/submit_first_array_hyak.sh`; HCP structural -> HCP functional/FIX -> `scripts/submit_msmall_array_hyak.sh` | Branch outputs and branch-specific QC statuses are recorded without changing unrelated branch decisions. |
 
 ## Dependency Map
 
@@ -51,7 +52,7 @@ config/mri_preproc.env
   └── fMRIPrep pilot ──> fMRIPrep production ──> output check / release manifest
                                       ├── HippUnfold branch
                                       ├── FIRST branch
-                                      └── MSMAll branch, after eligibility gate
+                                      └── HCP structural ──> HCP functional/FIX ──> MSMAll, after eligibility gate
 ```
 
 ## Management Checkpoints
@@ -99,8 +100,12 @@ Use these checkpoints as sign-offs before moving to the next expensive stage:
 - `scripts/submit_hippunfold_array_hyak.sh`: submits one HippUnfold array task per BIDS subject.
 - `scripts/run_first.sh`: runs the separate FSL FIRST derivative branch from fMRIPrep T1w anatomical outputs.
 - `scripts/submit_first_array_hyak.sh`: submits one FIRST array task per completed fMRIPrep subject.
+- `scripts/run_hcp_structural.sh`: runs HCP PreFreeSurfer, FreeSurfer, and PostFreeSurfer for MSMAll-eligible subjects.
+- `scripts/submit_hcp_structural_array_hyak.sh`: submits one HCP structural array task per eligible BIDS subject.
+- `scripts/run_hcp_functional.sh`: runs HCP GenericfMRIVolume, GenericfMRISurface, and multi-run ICA-FIX.
+- `scripts/submit_hcp_functional_array_hyak.sh`: submits one HCP functional/FIX array task per subject with completed HCP structural outputs.
 - `scripts/run_msmall.sh`: runs the separate MSMAll branch wrapper for eligible subjects using a project-specific driver.
-- `scripts/submit_msmall_array_hyak.sh`: submits one MSMAll array task per completed fMRIPrep subject.
+- `scripts/submit_msmall_array_hyak.sh`: submits one MSMAll array task per subject with completed HCP structural and functional/FIX inputs.
 - `scripts/msmall_driver.sh`: runs HCP Pipelines MSMAll inside the container.
 - `scripts/README_MSMALL_PIPELINE.md`: gives the full HCP structural, HCP functional/FIX, and MSMAll run order.
 - `scripts/submit_preproduction_pilot_hyak.sbatch`: submits the full pre-production pilot wrapper as a Hyak SLURM job.
@@ -260,35 +265,14 @@ scripts/download_templateflow_cache.sh
 scp templateflow_download/templateflow.tar.gz YOUR_HYAK_USER@klone.hyak.uw.edu:/gscratch/fang/
 ```
 
-Submit the full pre-production pilot job:
+Run BIDS validation and the AP/PA SDC metadata audit before expensive jobs:
 
 ```bash
-sbatch scripts/submit_preproduction_pilot_hyak.sbatch config/mri_preproc.env
-```
-
-Submit one parallel array task per subject:
-
-```bash
-scripts/submit_fmriprep_array_hyak.sh config/mri_preproc.env
-```
-
-The submitter first checks that the TemplateFlow cache exists and contains the
-required template files. It then writes a subject list and multi-session
-manifest into `LOG_DIR`, then submits:
-
-```bash
-one SLURM array task = one BIDS subject
-```
-
-For this multi-session project, do not split production into one array task per session. Each subject task keeps all intended sessions visible to fMRIPrep, uses `--subject-anatomical-reference unbiased`, and explicitly uses `--track-sessions`. This preserves a common within-subject anatomical reference while keeping functional outputs session- and run-specific.
-
-Submit the specialized derivative branches only after their branch-specific
-pilot/QC decisions are frozen:
-
-```bash
-scripts/submit_hippunfold_array_hyak.sh config/mri_preproc.env
-scripts/submit_first_array_hyak.sh config/mri_preproc.env
-scripts/submit_msmall_array_hyak.sh config/mri_preproc.env
+source config/mri_preproc.env
+scripts/run_bids_validator.sh config/mri_preproc.env
+scripts/run_python_hyak.sh config/mri_preproc.env \
+  scripts/audit_sdc_metadata.py "${BIDS_DIR}" \
+  --output "${LOG_DIR}/sdc_metadata_audit.csv"
 ```
 
 Run MRIQC before or alongside production fMRIPrep. Participant level is run as
@@ -322,6 +306,49 @@ now starts the container in `/work`, uses node-local `/scr/${USER}/mriqc_work`
 for active working files by default, and routes `HOME`, `TMPDIR`, Matplotlib,
 and AFNI runtime writes into that writable work directory.
 
+Submit the full pre-production pilot job after raw preflight and MRIQC are
+ready for review:
+
+```bash
+sbatch scripts/submit_preproduction_pilot_hyak.sbatch config/mri_preproc.env
+```
+
+After the pilot gate is accepted, submit one parallel fMRIPrep array task per
+subject:
+
+```bash
+scripts/submit_fmriprep_array_hyak.sh config/mri_preproc.env
+```
+
+The submitter first checks that the TemplateFlow cache exists and contains the
+required template files. It then writes a subject list and multi-session
+manifest into `LOG_DIR`, then submits:
+
+```bash
+one SLURM array task = one BIDS subject
+```
+
+For this multi-session project, do not split production into one array task per session. Each subject task keeps all intended sessions visible to fMRIPrep, uses `--subject-anatomical-reference unbiased`, and explicitly uses `--track-sessions`. This preserves a common within-subject anatomical reference while keeping functional outputs session- and run-specific.
+
+After production finishes, run expected-output checks and freeze provenance:
+
+```bash
+source config/mri_preproc.env
+scripts/run_python_hyak.sh config/mri_preproc.env \
+  scripts/check_fmriprep_outputs.py \
+  --fmriprep-dir "${FMRIPREP_OUT}" \
+  --freesurfer-dir "${FS_SUBJECTS_DIR}" \
+  --output "${LOG_DIR}/fmriprep_output_check.csv"
+
+scripts/run_python_hyak.sh config/mri_preproc.env \
+  scripts/freeze_release_manifest.py \
+  --config config/mri_preproc.env \
+  --output "${PROVENANCE_DIR}/release_manifest.json"
+```
+
+Submit the specialized derivative branches only after their branch-specific
+pilot/QC decisions are frozen:
+
 The HippUnfold branch reads raw BIDS and writes `${DERIVATIVES_DIR}/hippunfold`.
 Set `HIPPUNFOLD_MODALITY` in `config/mri_preproc.env` to the image type used
 for segmentation, usually `T1w` for the raw anatomical branch.
@@ -339,6 +366,20 @@ The FIRST branch reads completed fMRIPrep anatomical outputs and writes
 HCP structural preprocessing, HCP functional/FIX preprocessing, then MSMAll.
 Use `scripts/README_MSMALL_PIPELINE.md` for the full run order and required
 preflight checks.
+
+```bash
+scripts/submit_hippunfold_array_hyak.sh config/mri_preproc.env
+scripts/submit_first_array_hyak.sh config/mri_preproc.env
+
+# After HCP structural branch approval:
+scripts/submit_hcp_structural_array_hyak.sh config/mri_preproc.env
+
+# After structural completion and QC gate:
+scripts/submit_hcp_functional_array_hyak.sh config/mri_preproc.env
+
+# After functional/FIX completion and QC gate:
+scripts/submit_msmall_array_hyak.sh config/mri_preproc.env
+```
 
 To change the number of subjects running at the same time, edit:
 
@@ -361,6 +402,7 @@ scripts/run_fmriprep.sh config/mri_preproc.env
 For only the AP/PA SDC metadata audit:
 
 ```bash
+source config/mri_preproc.env
 scripts/run_python_hyak.sh config/mri_preproc.env \
   scripts/audit_sdc_metadata.py "${BIDS_DIR}" \
   --output "${LOG_DIR}/sdc_metadata_audit.csv"

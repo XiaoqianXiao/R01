@@ -12,6 +12,19 @@ therefore run in three stages:
 2. HCP functional preprocessing plus multi-run ICA-FIX
 3. MSMAll registration
 
+## Management Gates
+
+Treat MSMAll as a separate derivative release, not as part of the canonical
+fMRIPrep release. Move between stages only after the preceding stage is complete
+and QC-ready:
+
+| Gate | Required evidence | Decision |
+|---|---|---|
+| Branch approval | MSMAll is scientifically needed for the planned analysis, and the branch-specific QC plan is ready. | Preprocessing lead and analysis lead approve the branch. |
+| Structural gate | HCP structural jobs finish, `MNINonLinear` exists, myelin-map outputs exist, and skipped subjects are documented. | Subject can enter HCP functional/FIX. |
+| Functional/FIX gate | Functional manifest and FIX-cleaned dense time series exist for each subject. | Subject can enter MSMAll. |
+| MSMAll release gate | MSMAll outputs, commands, logs, skipped-subject lists, and QC decisions are archived. | Branch outputs can be used downstream. |
+
 ## Scripts
 
 - `scripts/build_hcp_pipelines.sbatch`: builds the HCP Pipelines 5.0.0
@@ -32,8 +45,9 @@ therefore run in three stages:
   container binds, logs, and optional eligibility filtering.
 - `scripts/msmall_driver.sh`: runs `MSMAll/MSMAllPipeline.sh` inside the HCP
   Pipelines container.
-- `scripts/submit_msmall_array_hyak.sh`: submits one MSMAll SLURM array task
-  per completed fMRIPrep subject.
+- `scripts/submit_msmall_array_hyak.sh`: uses completed fMRIPrep subjects as
+  the cohort roster, then submits only subjects with the required HCP structural
+  and functional/FIX inputs.
 - `scripts/submit_msmall_hyak.sbatch`: worker used by the MSMAll array.
 
 ## Prerequisites
@@ -172,9 +186,11 @@ Each worker runs:
 scripts/run_msmall.sh config/mri_preproc.env
 ```
 
-The submitter includes only subjects with `MNINonLinear`, a native myelin map,
-the functional MSMAll manifest, and the expected multi-run FIX outputs. Subjects
-missing those inputs are written to a skipped-subject list in `LOG_DIR`.
+The submitter starts from completed subjects under `FMRIPREP_OUT` so the branch
+stays aligned with the canonical preprocessing release. It then includes only
+subjects with `MNINonLinear`, a native myelin map, the functional MSMAll
+manifest, and the expected multi-run FIX outputs. Subjects missing those inputs
+are written to a skipped-subject list in `LOG_DIR`.
 
 `run_msmall.sh` binds `MSMALL_HCP_STUDY_FOLDER` read-only as `/hcp_input`.
 For each subject, the driver stages the subject into `/work/hcp` and runs:
@@ -287,7 +303,8 @@ msmall_run_*.log
 
 ## Minimal Full Run Order
 
-Use this order for a full cohort run:
+Use this order for the MSMAll branch after the canonical raw-data, MRIQC, and
+fMRIPrep gates have already been accepted:
 
 ```bash
 cd /gscratch/scrubbed/fanglab/xiaoqian/repo/R01
@@ -296,10 +313,10 @@ sbatch scripts/build_hcp_pipelines.sbatch
 
 scripts/submit_hcp_structural_array_hyak.sh config/mri_preproc.env
 
-# After structural completion and QC:
+# After structural completion and QC gate:
 scripts/submit_hcp_functional_array_hyak.sh config/mri_preproc.env
 
-# After functional/FIX completion and QC:
+# After functional/FIX completion and QC gate:
 scripts/submit_msmall_array_hyak.sh config/mri_preproc.env
 ```
 
