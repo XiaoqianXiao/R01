@@ -26,7 +26,9 @@ class SessionSummary:
 
 
 def strip_bids_prefix(subject_name: str) -> str:
-    return subject_name.removeprefix("sub-")
+    if subject_name.startswith("sub-"):
+        return subject_name[4:]
+    return subject_name
 
 
 def group_for_subject(subject_name: str) -> str:
