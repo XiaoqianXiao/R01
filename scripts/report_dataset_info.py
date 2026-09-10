@@ -149,9 +149,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__,
         epilog=(
-            "Hyak usage: scripts/run_python_hyak.sh config/mri_preproc.env "
-            "scripts/report_dataset_info.py \"$BIDS_DIR\" "
-            "--csv \"$PROVENANCE_DIR/dataset_info.csv\""
+            "Hyak usage: scripts/run_dataset_info_report_hyak.sh "
+            "config/mri_preproc.env"
         ),
     )
     parser.add_argument("bids_dir", type=Path, help="Path to the BIDS dataset root containing sub-* folders.")
