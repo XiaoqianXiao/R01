@@ -36,19 +36,14 @@ if [[ ! -d "$BIDS_DIR" ]]; then
 fi
 
 if [[ -z "${TEMPLATEFLOW_HOME:-}" ]]; then
-  if [[ -z "${PROJECT_DIR:-}" ]]; then
-    echo "ERROR: PROJECT_DIR is not set in $CONFIG_ENV" >&2
-    echo "PROJECT_DIR is needed to locate the project TemplateFlow cache." >&2
-    exit 2
-  fi
-  TEMPLATEFLOW_HOME="${PROJECT_DIR}/templateflow"
+  TEMPLATEFLOW_HOME="/gscratch/fang/templateflow"
 fi
 
 required_template="${TEMPLATEFLOW_HOME}/tpl-MNI152NLin6Asym/tpl-MNI152NLin6Asym_res-01_T1w.nii.gz"
 if [[ ! -s "$required_template" ]]; then
   echo "ERROR: TemplateFlow cache is not ready for offline Hyak fMRIPrep jobs." >&2
   echo "Missing or empty required file: $required_template" >&2
-  echo "Run scripts/prefetch_templateflow_hyak.sh $CONFIG_ENV from an internet-enabled Hyak context, then resubmit." >&2
+  echo "Populate TEMPLATEFLOW_HOME with scripts/prefetch_templateflow_hyak.sh $CONFIG_ENV from an internet-enabled Hyak context, then resubmit." >&2
   exit 2
 fi
 

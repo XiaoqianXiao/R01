@@ -6,7 +6,8 @@ usage() {
 Usage:
   scripts/prefetch_templateflow_hyak.sh CONFIG_ENV
 
-Populates the project TemplateFlow cache before fMRIPrep production.
+Populates the configured TemplateFlow cache before fMRIPrep production.
+Defaults to the shared lab cache at /gscratch/fang/templateflow.
 Run this from an internet-enabled Hyak login/data-transfer context, not inside
 the fMRIPrep SLURM array.
 USAGE
@@ -22,11 +23,7 @@ CONFIG_ENV="$1"
 source "$CONFIG_ENV"
 
 if [[ -z "${TEMPLATEFLOW_HOME:-}" ]]; then
-  if [[ -z "${PROJECT_DIR:-}" ]]; then
-    echo "ERROR: PROJECT_DIR is not set in $CONFIG_ENV" >&2
-    exit 2
-  fi
-  TEMPLATEFLOW_HOME="${PROJECT_DIR}/templateflow"
+  TEMPLATEFLOW_HOME="/gscratch/fang/templateflow"
 fi
 
 echo "TemplateFlow cache: $TEMPLATEFLOW_HOME" >&2
@@ -86,8 +83,8 @@ except OSError as exc:
     print(
         f"ERROR: cannot resolve {host} from this Hyak context: {exc}\n"
         "Run this command from a login/data-transfer node or another "
-        "environment with internet/DNS access. The scripts will use the "
-        "project cache automatically after it is populated.",
+        "environment with internet/DNS access. The scripts will use "
+        "TEMPLATEFLOW_HOME after it is populated.",
         file=sys.stderr,
     )
     raise SystemExit(2)
@@ -108,7 +105,7 @@ for template in templates:
         print(
             f"ERROR: failed to download TemplateFlow template {template}: {exc}\n"
             "Run this command from an internet-enabled context, or copy "
-            "an already-populated TemplateFlow cache into the project cache.",
+            "an already-populated TemplateFlow cache into TEMPLATEFLOW_HOME.",
             file=sys.stderr,
         )
         raise SystemExit(2)

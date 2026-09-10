@@ -131,6 +131,8 @@ Also set:
 - `FMRIPREP_IMAGE` to the frozen fMRIPrep 25.2.5 `.sif`, usually `/gscratch/fang/images/fmriprep-25.2.5.sif`
 - `MRIQC_IMAGE` to the frozen MRIQC `.sif`, usually `/gscratch/fang/images/mriqc-24.0.2.sif`
 - `MRIQC_NO_SUB=1` unless anonymized MRIQC metric submission has been approved
+- `MRIQC_USE_NODE_SCRATCH=1` so MRIQC's active Nipype/AFNI work runs in `/scr/${USER}/mriqc_work`
+- `TEMPLATEFLOW_HOME=/gscratch/fang/templateflow` so the cache can be shared across projects
 - `PYTHON_CONTAINER_IMAGE` to the Python/Jupyter `.sif`, usually `/gscratch/fang/images/jupyter.sif`
 - `PYTHON_CONTAINER_PYTHON` to the Python executable inside that container, usually `python3`
 - `APPTAINER_NO_MOUNT` to `bind-paths` so Hyak does not try to auto-mount unavailable site paths
@@ -231,9 +233,13 @@ during DAG construction when they cannot resolve `zenodo.org` or OSF. Set
 `HIPPUNFOLD_REQUIRE_CACHED_MODEL=0` or
 `HIPPUNFOLD_REQUIRE_CACHED_RESOURCES=0` only for a deliberate online test.
 
-Populate the project TemplateFlow cache before submitting fMRIPrep on compute
-nodes. No TemplateFlow customization is needed; the scripts use
-`${PROJECT_DIR}/templateflow` automatically when `TEMPLATEFLOW_HOME` is empty.
+Populate the shared TemplateFlow cache before submitting fMRIPrep on compute
+nodes. This project and the script fallbacks use:
+
+```bash
+TEMPLATEFLOW_HOME="/gscratch/fang/templateflow"
+```
+
 This avoids runtime failures when a job tries to download templates from S3 on
 a DNS- or internet-restricted node:
 
@@ -245,13 +251,13 @@ If the prefetch script reports that it cannot resolve
 `templateflow.s3.amazonaws.com`, the current Hyak context also lacks
 internet/DNS access. Run the prefetch from a login/data-transfer node with
 internet access, or copy a populated TemplateFlow cache into
-`${PROJECT_DIR}/templateflow` before submitting the array.
+`/gscratch/fang/templateflow` before submitting the array.
 
 To download the cache somewhere else and package it for transfer:
 
 ```bash
 scripts/download_templateflow_cache.sh
-scp templateflow_download/templateflow.tar.gz YOUR_HYAK_USER@klone.hyak.uw.edu:/gscratch/scrubbed/fanglab/xiaoqian/IFOCUS/
+scp templateflow_download/templateflow.tar.gz YOUR_HYAK_USER@klone.hyak.uw.edu:/gscratch/fang/
 ```
 
 Submit the full pre-production pilot job:
@@ -308,6 +314,13 @@ MRIQC_NO_SUB="1"
 
 Keep `MRIQC_NO_SUB=1` unless project leadership explicitly approves submission
 of anonymized MRIQC IQMs.
+
+If an MRIQC participant job crashes in AFNI `3dvolreg` with messages like
+`Cannot open '*aff12.1D' for output` or `cannot open output file`, update to the
+current `scripts/run_mriqc.sh` and rerun the failed subject task. The runner
+now starts the container in `/work`, uses node-local `/scr/${USER}/mriqc_work`
+for active working files by default, and routes `HOME`, `TMPDIR`, Matplotlib,
+and AFNI runtime writes into that writable work directory.
 
 The HippUnfold branch reads raw BIDS and writes `${DERIVATIVES_DIR}/hippunfold`.
 Set `HIPPUNFOLD_MODALITY` in `config/mri_preproc.env` to the image type used

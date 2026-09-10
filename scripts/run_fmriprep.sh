@@ -114,12 +114,7 @@ if [[ -n "${EXTRA_FMRIPREP_ARGS:-}" ]]; then
 fi
 
 if [[ -z "${TEMPLATEFLOW_HOME:-}" ]]; then
-  if [[ -z "${PROJECT_DIR:-}" ]]; then
-    echo "ERROR: PROJECT_DIR is not set in $CONFIG_ENV" >&2
-    echo "PROJECT_DIR is needed to locate the project TemplateFlow cache." >&2
-    exit 2
-  fi
-  TEMPLATEFLOW_HOME="${PROJECT_DIR}/templateflow"
+  TEMPLATEFLOW_HOME="/gscratch/fang/templateflow"
 fi
 
 docker_templateflow_args=()
@@ -129,14 +124,14 @@ if [[ -n "${TEMPLATEFLOW_HOME:-}" && -d "${TEMPLATEFLOW_HOME}" ]]; then
   if [[ ! -s "$required_template" ]]; then
     echo "ERROR: TEMPLATEFLOW_HOME is set but the cache is incomplete." >&2
     echo "Missing or empty required file: $required_template" >&2
-    echo "Run scripts/prefetch_templateflow_hyak.sh $CONFIG_ENV from an internet-enabled Hyak context, then resubmit." >&2
+    echo "Populate TEMPLATEFLOW_HOME with scripts/prefetch_templateflow_hyak.sh $CONFIG_ENV from an internet-enabled Hyak context, then resubmit." >&2
     exit 2
   fi
   docker_templateflow_args=(-v "${TEMPLATEFLOW_HOME}:/templateflow" -e TEMPLATEFLOW_HOME=/templateflow)
   apptainer_templateflow_args=(-B "${TEMPLATEFLOW_HOME}:/templateflow" --env TEMPLATEFLOW_HOME=/templateflow)
 elif [[ -n "${TEMPLATEFLOW_HOME:-}" ]]; then
   echo "ERROR: TEMPLATEFLOW_HOME does not exist: ${TEMPLATEFLOW_HOME}" >&2
-  echo "Run scripts/prefetch_templateflow_hyak.sh $CONFIG_ENV from an internet-enabled Hyak context, then resubmit." >&2
+  echo "Populate TEMPLATEFLOW_HOME with scripts/prefetch_templateflow_hyak.sh $CONFIG_ENV from an internet-enabled Hyak context, then resubmit." >&2
   exit 2
 fi
 

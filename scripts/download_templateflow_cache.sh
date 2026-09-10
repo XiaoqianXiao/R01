@@ -10,7 +10,7 @@ Downloads the TemplateFlow templates needed by this fMRIPrep workflow and
 packages them as templateflow.tar.gz.
 
 Run this on a machine with internet access. Then copy templateflow.tar.gz to
-the Hyak project directory and extract it there.
+Hyak and extract it into the shared TemplateFlow cache parent directory.
 
 Examples:
   scripts/download_templateflow_cache.sh
@@ -78,8 +78,8 @@ echo "TemplateFlow cache: $CACHE_DIR"
 echo "Archive: $ARCHIVE"
 echo
 echo "Copy to Hyak:"
-echo "  scp $ARCHIVE YOUR_HYAK_USER@klone.hyak.uw.edu:/gscratch/scrubbed/fanglab/xiaoqian/IFOCUS/"
+echo "  scp $ARCHIVE YOUR_HYAK_USER@klone.hyak.uw.edu:/gscratch/fang/"
 echo
 echo "Extract on Hyak:"
-echo "  cd /gscratch/scrubbed/fanglab/xiaoqian/IFOCUS"
+echo "  cd /gscratch/fang"
 echo "  tar -xzf templateflow.tar.gz"

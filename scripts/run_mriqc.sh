@@ -30,6 +30,8 @@ source "$CONFIG_ENV"
 
 MRIQC_OUT="${MRIQC_OUT:-${DERIVATIVES_DIR}/qc/mriqc}"
 MRIQC_WORK="${MRIQC_WORK:-${PROJECT_DIR}/scratch/mriqc_work}"
+MRIQC_USE_NODE_SCRATCH="${MRIQC_USE_NODE_SCRATCH:-1}"
+MRIQC_NODE_WORK_PARENT="${MRIQC_NODE_WORK_PARENT:-/scr/${USER}/mriqc_work}"
 MRIQC_LOG_DIR="${MRIQC_LOG_DIR:-${PROJECT_DIR}/logs/mriqc}"
 MRIQC_NO_SUB="${MRIQC_NO_SUB:-1}"
 MRIQC_MODALITIES="${MRIQC_MODALITIES:-T1w T2w bold}"
@@ -37,10 +39,12 @@ MRIQC_NPROC="${MRIQC_NPROC:-${NTHREADS:-8}}"
 MRIQC_OMP_NTHREADS="${MRIQC_OMP_NTHREADS:-${OMP_NTHREADS:-4}}"
 MRIQC_MEM_GB="${MRIQC_MEM_GB:-64}"
 
+work_label="$MRIQC_LEVEL"
 if [[ -n "${MRIQC_SINGLE_SUBJECT:-}" ]]; then
   MRIQC_PARTICIPANT_LABELS="$MRIQC_SINGLE_SUBJECT"
   subject_work_label="${MRIQC_SINGLE_SUBJECT#sub-}"
   MRIQC_WORK="${MRIQC_WORK}/${subject_work_label}"
+  work_label="$subject_work_label"
 fi
 
 required_vars=(
@@ -66,7 +70,23 @@ if [[ ! -f "$MRIQC_IMAGE" && "$CONTAINER_RUNTIME" != "docker" ]]; then
   exit 2
 fi
 
-mkdir -p "$MRIQC_OUT" "$MRIQC_WORK" "$MRIQC_LOG_DIR" "${MRIQC_WORK}/matplotlib"
+mkdir -p \
+  "$MRIQC_OUT" \
+  "$MRIQC_WORK" \
+  "$MRIQC_LOG_DIR"
+
+array_label="${SLURM_ARRAY_TASK_ID:-manual}"
+runtime_work="$MRIQC_WORK"
+if [[ "$MRIQC_USE_NODE_SCRATCH" == "1" && -d "/scr/${USER}" ]]; then
+  job_label="${SLURM_JOB_ID:-manual}_${array_label}_${work_label}"
+  runtime_work="${MRIQC_NODE_WORK_PARENT}/${job_label}"
+fi
+
+mkdir -p \
+  "$runtime_work" \
+  "${runtime_work}/home" \
+  "${runtime_work}/matplotlib" \
+  "${runtime_work}/tmp"
 
 mriqc_args=(
   /data
@@ -125,7 +145,6 @@ if [[ -n "${MRIQC_SINGLE_SUBJECT:-}" ]]; then
 elif [[ -n "${MRIQC_PARTICIPANT_LABELS:-}" ]]; then
   log_label="${log_label}_$(echo "$MRIQC_PARTICIPANT_LABELS" | tr ' /' '__')"
 fi
-array_label="${SLURM_ARRAY_TASK_ID:-manual}"
 command_log="${MRIQC_LOG_DIR}/mriqc_command_${log_label}_${array_label}_${timestamp}.txt"
 run_log="${MRIQC_LOG_DIR}/mriqc_run_${log_label}_${array_label}_${timestamp}.log"
 
@@ -136,6 +155,13 @@ run_log="${MRIQC_LOG_DIR}/mriqc_run_${log_label}_${array_label}_${timestamp}.log
   echo "MRIQC_LEVEL=$MRIQC_LEVEL"
   echo "MRIQC_PARTICIPANT_LABELS=${MRIQC_PARTICIPANT_LABELS:-}"
   echo "MRIQC_MODALITIES=${MRIQC_MODALITIES:-}"
+  echo "MRIQC_WORK=$MRIQC_WORK"
+  echo "MRIQC_USE_NODE_SCRATCH=$MRIQC_USE_NODE_SCRATCH"
+  echo "MRIQC_NODE_WORK_PARENT=$MRIQC_NODE_WORK_PARENT"
+  echo "Runtime work host dir=$runtime_work"
+  echo "Container work dir=/work"
+  echo "Container HOME=/work/home"
+  echo "Container TMPDIR=/work/tmp"
   printf 'mriqc args:'
   printf ' %q' "${mriqc_args[@]}"
   echo
@@ -144,30 +170,42 @@ run_log="${MRIQC_LOG_DIR}/mriqc_run_${log_label}_${array_label}_${timestamp}.log
 case "$CONTAINER_RUNTIME" in
   docker)
     docker run --rm \
+      -w /work \
       -v "${BIDS_DIR}:/data:ro" \
       -v "${MRIQC_OUT}:/out" \
-      -v "${MRIQC_WORK}:/work" \
+      -v "${runtime_work}:/work" \
+      -e HOME=/work/home \
       -e MPLCONFIGDIR=/work/matplotlib \
+      -e TMPDIR=/work/tmp \
+      -e AFNI_NIFTI_TYPE_WARN=NO \
       "$MRIQC_IMAGE" \
       "${mriqc_args[@]}" 2>&1 | tee "$run_log"
     ;;
   apptainer)
     apptainer run --cleanenv \
       "${apptainer_no_mount_args[@]}" \
+      --pwd /work \
       -B "${BIDS_DIR}:/data:ro" \
       -B "${MRIQC_OUT}:/out" \
-      -B "${MRIQC_WORK}:/work" \
+      -B "${runtime_work}:/work" \
+      --env HOME=/work/home \
       --env MPLCONFIGDIR=/work/matplotlib \
+      --env TMPDIR=/work/tmp \
+      --env AFNI_NIFTI_TYPE_WARN=NO \
       "$MRIQC_IMAGE" \
       "${mriqc_args[@]}" 2>&1 | tee "$run_log"
     ;;
   singularity)
     singularity run --cleanenv \
       "${apptainer_no_mount_args[@]}" \
+      --pwd /work \
       -B "${BIDS_DIR}:/data:ro" \
       -B "${MRIQC_OUT}:/out" \
-      -B "${MRIQC_WORK}:/work" \
+      -B "${runtime_work}:/work" \
+      --env HOME=/work/home \
       --env MPLCONFIGDIR=/work/matplotlib \
+      --env TMPDIR=/work/tmp \
+      --env AFNI_NIFTI_TYPE_WARN=NO \
       "$MRIQC_IMAGE" \
       "${mriqc_args[@]}" 2>&1 | tee "$run_log"
     ;;
