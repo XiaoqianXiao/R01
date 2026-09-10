@@ -9,6 +9,9 @@ Usage:
 Reports basic BIDS dataset information using the configured Hyak Python
 container. If OUTPUT_CSV is omitted, the CSV is written to:
   ${PROVENANCE_DIR}/dataset_info.csv
+
+The script writes OUTPUT_CSV as the session-level report and also writes
+companion group, subject, and run-inventory CSV files next to it.
 USAGE
 }
 
