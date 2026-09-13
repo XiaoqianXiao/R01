@@ -18,7 +18,8 @@ Usage:
   sbatch [SLURM_OPTIONS] scripts/submit_mriqc_hyak.sbatch CONFIG_ENV [SUBJECT_LIST]
 
 Runs MRIQC participant level on Hyak. With SUBJECT_LIST and a SLURM array,
-each array task runs exactly one subject.
+each array task runs one subject. A tab-separated subject/session list runs
+one session per task; legacy one-column subject lists remain supported.
 USAGE
 }
 
@@ -57,12 +58,18 @@ if [[ -n "$SUBJECT_LIST" ]]; then
     echo "ERROR: subject list not found: $SUBJECT_LIST" >&2
     exit 2
   fi
-  subject="$(sed -n "$((SLURM_ARRAY_TASK_ID + 1))p" "$SUBJECT_LIST")"
+  row="$(sed -n "$((SLURM_ARRAY_TASK_ID + 1))p" "$SUBJECT_LIST")"
+  subject="${row%%$'\t'*}"
+  session=""
+  if [[ "$row" == *$'\t'* ]]; then
+    session="${row#*$'\t'}"
+  fi
   if [[ -z "$subject" ]]; then
     echo "ERROR: no subject found for array index ${SLURM_ARRAY_TASK_ID}" >&2
     exit 2
   fi
   export MRIQC_SINGLE_SUBJECT="$subject"
+  export MRIQC_SINGLE_SESSION="$session"
 fi
 
 export OMP_NUM_THREADS="${MRIQC_OMP_NTHREADS:-${OMP_NTHREADS:-4}}"

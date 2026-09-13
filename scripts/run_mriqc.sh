@@ -47,6 +47,11 @@ if [[ -n "${MRIQC_SINGLE_SUBJECT:-}" ]]; then
   work_label="$subject_work_label"
 fi
 
+if [[ -n "${MRIQC_SINGLE_SESSION:-}" && "$MRIQC_SINGLE_SESSION" != "single-session" ]]; then
+  MRIQC_WORK="${MRIQC_WORK}/${MRIQC_SINGLE_SESSION}"
+  work_label="${work_label}_${MRIQC_SINGLE_SESSION}"
+fi
+
 required_vars=(
   BIDS_DIR MRIQC_OUT MRIQC_WORK MRIQC_LOG_DIR CONTAINER_RUNTIME MRIQC_IMAGE
   MRIQC_NPROC MRIQC_OMP_NTHREADS MRIQC_MEM_GB
@@ -118,6 +123,10 @@ if [[ "$MRIQC_LEVEL" == "participant" && -n "${MRIQC_PARTICIPANT_LABELS:-}" ]]; 
     participant_labels+=("${participant#sub-}")
   done
   mriqc_args+=("${participant_labels[@]}")
+fi
+
+if [[ "$MRIQC_LEVEL" == "participant" && -n "${MRIQC_SINGLE_SESSION:-}" && "$MRIQC_SINGLE_SESSION" != "single-session" ]]; then
+  mriqc_args+=(--session-id "${MRIQC_SINGLE_SESSION#ses-}")
 fi
 
 if [[ "$MRIQC_NO_SUB" == "1" ]]; then

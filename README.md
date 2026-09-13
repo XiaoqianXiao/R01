@@ -139,11 +139,25 @@ scripts/run_python_hyak.sh config/mri_preproc.env \
   --output "${LOG_DIR}/sdc_metadata_audit.csv"
 ```
 
-Run MRIQC participant level as one subject per array task:
+Run MRIQC participant level as one subject/session per array task, selecting
+only sessions with missing outputs:
 
 ```bash
 scripts/submit_mriqc_array_hyak.sh config/mri_preproc.env
 ```
+
+The current config scans `BIDS_DIR=/gscratch/scrubbed/fanglab/xiaoqian/IFOCUS/sourcedata/nii`
+and checks `MRIQC_OUT=/gscratch/scrubbed/fanglab/xiaoqian/IFOCUS/derivatives/qc/mriqc`.
+A session is complete when every input image selected by `MRIQC_MODALITIES`
+(default: `T1w T2w bold`) has a nonempty IQM JSON and HTML report. Sessions with
+missing or empty outputs are submitted, including partially completed sessions;
+completed sessions and sessions without matching images are skipped. If nothing
+is pending, the script exits successfully without submitting jobs.
+
+Each invocation writes a pending-session list and a session status TSV under
+`MRIQC_LOG_DIR` (default: `${PROJECT_DIR}/logs/mriqc`). After jobs finish, rerun
+the same command to select any sessions still missing outputs. See the
+[MRI preprocessing guide](scripts/README_MRI_PREPROCESSING.md) for manifest details.
 
 After participant-level jobs complete, generate group reports and IQM tables:
 

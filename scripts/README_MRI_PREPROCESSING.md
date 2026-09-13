@@ -90,7 +90,7 @@ Use these checkpoints as sign-offs before moving to the next expensive stage:
 - `scripts/make_multisession_manifest.py`: records each subject/session and whether anat, func, and fmap files are present.
 - `scripts/audit_sdc_metadata.py`: audits AP/PA fieldmap JSON metadata, `B0FieldIdentifier` / `B0FieldSource` mappings, `IntendedFor`, readout metadata, and optional fieldmap geometry.
 - `scripts/run_mriqc.sh`: runs MRIQC participant or group level with project resource controls and `--no-sub` by default.
-- `scripts/submit_mriqc_array_hyak.sh`: submits one MRIQC participant-level array task per BIDS subject.
+- `scripts/submit_mriqc_array_hyak.sh`: checks existing outputs and submits one MRIQC participant-level array task per BIDS subject/session with missing outputs.
 - `scripts/submit_mriqc_hyak.sbatch`: submits the MRIQC participant-level worker as a Hyak SLURM job.
 - `scripts/submit_mriqc_group_hyak.sbatch`: submits MRIQC group-level report/table generation after participant outputs are complete.
 - `scripts/run_fmriprep.sh`: runs the canonical fMRIPrep 25.2.5 workflow with `func`, `T1w`, `MNI152NLin2009cAsym:res-native`, `fsnative`, CIFTI 91k, MSMSulc, explicit session tracking, and `--slice-time-ref 0.5`.
@@ -275,12 +275,47 @@ scripts/run_python_hyak.sh config/mri_preproc.env \
   --output "${LOG_DIR}/sdc_metadata_audit.csv"
 ```
 
-Run MRIQC before or alongside production fMRIPrep. Participant level is run as
-one subject per SLURM array task:
+Run MRIQC before or alongside production fMRIPrep. The submitter selects sessions
+with missing outputs and runs one subject/session per SLURM array task:
 
 ```bash
 scripts/submit_mriqc_array_hyak.sh config/mri_preproc.env
 ```
+
+The paths come from `config/mri_preproc.env`, currently:
+
+```bash
+BIDS_DIR="/gscratch/scrubbed/fanglab/xiaoqian/IFOCUS/sourcedata/nii"
+MRIQC_OUT="/gscratch/scrubbed/fanglab/xiaoqian/IFOCUS/derivatives/qc/mriqc"
+```
+
+For each `sub-*/ses-*` directory, the submitter checks `.nii` and `.nii.gz`
+images matching `MRIQC_MODALITIES` in the corresponding `anat`, `func`, or `dwi`
+directory. Subjects without `ses-*` directories are recorded as `single-session`.
+An image counts as complete only when both its IQM JSON (at the matching relative
+path under `MRIQC_OUT`) and its HTML report (at the root of `MRIQC_OUT`) are
+nonempty. This checks file presence and size, not report validity or QC quality.
+
+If any image lacks either output, the entire session is selected, including
+partially completed sessions. The worker passes the subject and session filters
+to MRIQC and uses a separate work directory for each session. Completed sessions
+and sessions with no matching images are skipped. When no sessions are pending,
+the script exits successfully without calling `sbatch`.
+
+Each invocation writes two files under `MRIQC_LOG_DIR`, which defaults to
+`${PROJECT_DIR}/logs/mriqc`:
+
+- `mriqc_pending_sessions_<timestamp>_<pid>.tsv`: a headerless subject/session
+  list, with one row per array task.
+- `mriqc_session_status_<timestamp>_<pid>.tsv`: all discovered sessions, with
+  `subject`, `session`, `input_images`, `missing_outputs`, and `status` columns.
+  `missing_outputs` counts images missing one or both outputs; `status` is
+  `pending`, `complete`, or `no-inputs`.
+
+Concurrency is controlled by `MRIQC_ARRAY_CONCURRENCY`, falling back to
+`HYAK_ARRAY_CONCURRENCY` and then `10`. After jobs finish, rerun the same submission
+command to select sessions still missing outputs. Selection checks files only;
+it does not check SLURM for jobs already running or queued.
 
 After all participant-level MRIQC jobs are complete, generate group-level
 reports and IQM tables from the same output directory:
@@ -301,7 +336,8 @@ of anonymized MRIQC IQMs.
 
 If an MRIQC participant job crashes in AFNI `3dvolreg` with messages like
 `Cannot open '*aff12.1D' for output` or `cannot open output file`, update to the
-current `scripts/run_mriqc.sh` and rerun the failed subject task. The runner
+current `scripts/run_mriqc.sh` and rerun the submission command after jobs finish
+to select the failed sessions. The runner
 now starts the container in `/work`, uses node-local `/scr/${USER}/mriqc_work`
 for active working files by default, and routes `HOME`, `TMPDIR`, Matplotlib,
 and AFNI runtime writes into that writable work directory.
